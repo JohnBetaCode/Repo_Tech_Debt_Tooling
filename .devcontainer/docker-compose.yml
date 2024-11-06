@@ -1,0 +1,26 @@
+# version: '3.8'
+services:
+  project-repo_tech_debt_tooling:
+    build:
+      context: ../
+      dockerfile: .devcontainer/Dockerfile
+    container_name: repo_tech_debt_tooling
+    user: "ada"
+    working_dir: /home/ada
+    network_mode: host
+
+    init: true
+    privileged: true
+
+    environment:
+      - DISPLAY=$DISPLAY
+      - QT_X11_NO_MITSHM=1
+      - UDEV=1
+
+    volumes:
+      # Update this to wherever you want VS Code to mount the folder of your project
+      - ..:/workspace
+
+    stdin_open: true
+    tty: true
+    command: "/bin/bash"

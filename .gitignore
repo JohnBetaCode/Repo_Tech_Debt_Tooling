@@ -1,0 +1,7 @@
+*.jpg
+*.pt
+*.png
+*.pyc
+*.pdf
+/tmp
+configs/secrets.sh
