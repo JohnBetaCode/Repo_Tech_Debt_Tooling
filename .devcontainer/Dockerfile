@@ -50,6 +50,7 @@ RUN python3 -m pip install --upgrade pip wheel \
     pandas \
     numpy \ 
     fpdf \
+    requests \
     --ignore-installed \
     && rm -rf /home/ada/.cache/pip
 

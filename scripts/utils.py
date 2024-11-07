@@ -2,10 +2,13 @@
 import os
 import requests
 import json
+from datetime import datetime
 
 
 # ----------------------------------------------------------------
-def get_github_issues_history(url: str, accept: str, token: str, save: bool = True):
+def get_github_issues_and_prs_history(
+    url: str, accept: str, token: str, save: bool = True
+):
 
     # Check if required environment variables are set
     if not url or not accept:
@@ -113,9 +116,121 @@ def print_selected_keys(data, keys):
     print_dict_with_indent(selected_data)
 
 
+def get_opened_issues_by_date(issues, target_date):
+    """
+    Filters opened issues by a specified target date.
+
+    Args:
+        issues (list): List of issues from the GitHub API.
+        target_date (str): The target date in "YYYY-MM-DD" format.
+
+    Returns:
+        list: A list of open issues created on the specified date.
+    """
+    filtered_issues = []
+    target_date_obj = datetime.strptime(target_date, "%Y-%m-%d").date()
+
+    for issue in issues:
+        # Parse the created_at date
+        created_at_date = datetime.strptime(
+            issue["created_at"], "%Y-%m-%dT%H:%M:%SZ"
+        ).date()
+
+        # Check if the issue is open and was created on the target date
+        if issue["state"] == "open" and created_at_date == target_date_obj:
+            filtered_issues.append(issue)
+
+    return filtered_issues
+
+
+def get_closed_issues_by_date(issues, target_date):
+    """
+    Retrieves a list of issues that were closed (or merged, if a pull request) on a specific date.
+
+    Args:
+        issues (list): List of issues from the GitHub API.
+        target_date (str): The target date in "YYYY-MM-DD" format.
+
+    Returns:
+        list: A list of issues closed or merged on the specified date.
+    """
+    target_date_obj = datetime.strptime(target_date, "%Y-%m-%d").date()
+    closed_issues = []
+
+    for issue in issues:
+        # Check if the issue is closed and has a closed_at date
+        if issue["state"] == "closed" and "closed_at" in issue and issue["closed_at"]:
+            closed_at_date = datetime.strptime(
+                issue["closed_at"], "%Y-%m-%dT%H:%M:%SZ"
+            ).date()
+
+            # Check if the issue was closed on the target date
+            if closed_at_date == target_date_obj:
+                closed_issues.append(issue)
+
+    return closed_issues
+
+
+def get_open_issues_up_to_date(issues, target_date):
+    """
+    Retrieves a list of open issues that were created up to (and including) a specific date,
+    ignoring closed or merged issues.
+
+    Args:
+        issues (list): List of issues from the GitHub API.
+        target_date (str): The target date in "YYYY-MM-DD" format.
+
+    Returns:
+        list: A list of open issues that were created up to the specified date.
+    """
+    target_date_obj = datetime.strptime(target_date, "%Y-%m-%d").date()
+    open_issues = []
+
+    for issue in issues:
+        # Check if the issue is open
+        if issue["state"] == "open":
+            # Parse the created_at date
+            created_at_date = datetime.strptime(
+                issue["created_at"], "%Y-%m-%dT%H:%M:%SZ"
+            ).date()
+
+            # Check if the issue was created on or before the target date
+            if created_at_date <= target_date_obj:
+                open_issues.append(issue)
+
+    return open_issues
+
+
+def get_score_labels(labels: dict) -> dict:
+
+    labels_score = {
+        "PRIORITY_LOW": 1,
+        "PRIORITY_MEDIUM": 2,
+        "PRIORITY_HIGH": 3,
+        "PRIORITY_SATANIC": 5,
+    }
+    for key, value in labels_score.items():
+        if key in labels.keys():
+            labels_score[key] *= labels[key]
+        else:
+            labels_score[key] = 0
+
+    return labels_score
+
+
 # ----------------------------------------------------------------
 if __name__ == "__main__":
 
+    # Check if the file exists and is not empty
+    secrets_file = "configs/secrets.sh"
+    if os.path.isfile(secrets_file) and os.path.getsize(secrets_file) > 0:
+        # print("The secrets file exists and is not empty.")
+        pass
+    else:
+        print("The secrets file is empty or does not exist.")
+        exit()
+
+    # --------------------------------------------------------------
     # Load the URL and headers from environment variables
     GITHUB_API_URL_ISSUES = str(
         os.getenv("GITHUB_API_URL_ISSUES")
@@ -123,21 +238,65 @@ if __name__ == "__main__":
     GITHUB_ACCEPT = str(os.getenv("GITHUB_ACCEPT"))  # Default to GitHub v3 if not set
     GITHUB_TOKEN = str(os.getenv("GITHUB_TOKEN"))  # Bearer token without the prefix
 
+    # --------------------------------------------------------------
     # Check if the file exist, otherwise load it
     data = load_issues_from_file(path="/workspace/tmp", filename="issues.json")
     if not len(data):
-        data = get_github_issues_history(
+        data = get_github_issues_and_prs_history(
             url=GITHUB_API_URL_ISSUES,
             accept=GITHUB_ACCEPT,
             token=GITHUB_TOKEN,
         )
 
-    # print_dict_with_indent(data[-1])
-    print(len(data))
+    # --------------------------------------------------------------
+    # Filter only issues
+    issues_data = [issue for issue in data if "pull_request" not in issue]
+    # Filter only pull request
+    prs_data = [issue for issue in data if not "pull_request" not in issue]
 
-    labels = count_labels(data=data)
+    # --------------------------------------------------------------
+    target_date = "2024-11-03"
 
+    # open_issues_on_date = get_opened_issues_by_date(
+    #     issues=issues_data, target_date=target_date
+    # )
+    # opened_issues_labels = count_labels(data=open_issues_on_date)
+    # print_selected_keys(
+    #     data=opened_issues_labels,
+    #     keys=["SATANIC", "PRIORITY_LOW", "PRIORITY_MEDIUM", "PRIORITY_HIGH"],
+    # )
+
+    closed_issues_on_date = get_closed_issues_by_date(
+        issues=issues_data, target_date=target_date
+    )
+    closed_issues_labels = count_labels(data=closed_issues_on_date)
+    # print_selected_keys(
+    #     data=closed_issues_labels,
+    #     keys=["SATANIC", "PRIORITY_LOW", "PRIORITY_MEDIUM", "PRIORITY_HIGH"],
+    # )
+
+    open_issues_up_to_date = get_open_issues_up_to_date(
+        issues=issues_data, target_date=target_date
+    )
+
+    open_up_date_issues_labels = count_labels(data=open_issues_up_to_date)
+    # print_selected_keys(
+    #     data=open_up_date_issues_labels,
+    #     keys=["SATANIC", "PRIORITY_LOW", "PRIORITY_MEDIUM", "PRIORITY_HIGH"],
+    # )
+
+    # --------------------------------------------------------------
+    score_labels = get_score_labels(labels=open_up_date_issues_labels)
+    score_total = sum(score_labels.values())
+
+    # --------------------------------------------------------------
+    # Report Zone
+    print("Issues Opened: " + str(len(open_issues_up_to_date)))
+    print("Total Score: " + str(score_total))
+    print("Scores:")
+    print_dict_with_indent(score_labels)
+    print("Quantities:")
     print_selected_keys(
-        data=labels,
+        data=open_up_date_issues_labels,
         keys=["SATANIC", "PRIORITY_LOW", "PRIORITY_MEDIUM", "PRIORITY_HIGH"],
     )
