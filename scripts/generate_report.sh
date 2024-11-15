@@ -28,5 +28,10 @@ fi
 # Source environment variables from secrets.sh
 source configs/secrets.sh
 
-# Run the Python script
-python3 scripts/utils.py
+# You can either pass arguments directly to the script
+# or use default values
+START_WEEK=${1:-$(date +%V)}  # Default to current week if no argument provided
+END_WEEK=${2:-$(date +%V)}    # Default to current week if no argument provided
+
+# Execute the Python script with the week parameters
+python3 scripts/utils.py --start-week "$START_WEEK" --end-week

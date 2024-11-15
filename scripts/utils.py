@@ -3,6 +3,8 @@ import os
 import requests
 import json
 from datetime import datetime
+import argparse
+from datetime import date, timedelta
 
 
 # ----------------------------------------------------------------
@@ -218,8 +220,51 @@ def get_score_labels(labels: dict) -> dict:
     return labels_score
 
 
+# Convert week numbers to dates
+def week_to_date(year, week):
+    # Find the first day of the year
+    first_day = date(year, 1, 1)
+    # Find the first Monday of the year
+    if first_day.weekday() > 3:
+        first_monday = first_day + timedelta(days=(7 - first_day.weekday()))
+    else:
+        first_monday = first_day - timedelta(days=first_day.weekday())
+    # Add the weeks
+    return first_monday + timedelta(weeks=week-1)
+
+
 # ----------------------------------------------------------------
 if __name__ == "__main__":
+
+    # --------------------------------------------------------------
+    # Set up argument parser
+    parser = argparse.ArgumentParser(description='Process GitHub issues based on week numbers')
+    parser.add_argument('--start-week', type=int, help='Starting week number (1-52)')
+    parser.add_argument('--end-week', type=int, help='Ending week number (1-52)')
+    args = parser.parse_args()
+
+    # Get current year and week
+    today = date.today()
+    current_year = today.year
+    current_week = today.isocalendar()[1]
+
+    # Set default values if arguments are not provided
+    start_week = args.start_week if args.start_week is not None else 1
+    end_week = args.end_week if args.end_week is not None else current_week
+
+    # Validate week numbers
+    if not (1 <= start_week <= 52 and 1 <= end_week <= 52):
+        print("Week numbers must be between 1 and 52")
+        exit(1)
+    if start_week > end_week:
+        print("Start week must be less than or equal to end week")
+        exit(1)
+
+
+    start_date = week_to_date(current_year, start_week)
+    end_date = week_to_date(current_year, end_week)
+
+    print(f"Analyzing issues from Week {start_week} ({start_date}) to Week {end_week} ({end_date})")
 
     # Check if the file exists and is not empty
     secrets_file = "configs/secrets.sh"
@@ -247,6 +292,9 @@ if __name__ == "__main__":
             accept=GITHUB_ACCEPT,
             token=GITHUB_TOKEN,
         )
+
+
+    exit()
 
     # --------------------------------------------------------------
     # Filter only issues
