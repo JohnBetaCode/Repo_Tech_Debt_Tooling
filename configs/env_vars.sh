@@ -1,0 +1,16 @@
+# Configuration flags for report generation:
+
+# Whether to perform cleanup operations during report generation
+export GENERATE_REPORT_CLEANUP=true
+
+# Toggle for analyzing user-related metrics
+export PERFORM_USER_ANALYSIS=false
+
+# Toggle for analyzing score-related metrics
+export PERFORM_SCORE_ANALYSIS=true
+
+# Whether to print analysis results to logs
+export PRINT_LOGS_ANALYSIS_RESULTS=true
+
+# Whether to delete previous report before generating new one
+export DELETE_PREVIOUS_REPORT=true

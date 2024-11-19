@@ -20,6 +20,7 @@ RUN apt update && apt install -y \
     build-essential \
     git \
     curl \
+    PyYAML \
     # ---------------------------------
     && apt autoremove && apt clean -y \
     && rm -rf /var/lib/apt/lists/*
