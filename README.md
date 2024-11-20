@@ -1,81 +1,155 @@
-# Repo Tech Debt Tooling
+# GitHub Issues Analysis Tool
 
-A tool for analyzing and visualizing technical debt based on GitHub issues.
+A comprehensive tool for analyzing and visualizing GitHub issues data, with a focus on technical debt tracking and team performance metrics.
 
 ## Description
-This tool enables the analysis and generation of reports on a project's technical debt, using GitHub issues as the data source. The system classifies and scores issues according to their priority, allowing temporal tracking of technical debt evolution.
+This tool provides detailed analysis and visualization of GitHub issues data, enabling teams to track technical debt, monitor team performance, and generate comprehensive reports. It supports various types of analysis including issue activity, priority-based scoring, and per-user metrics.
 
 ## Features
-- Automatic issue retrieval from GitHub API
-- Weekly period analysis
-- Priority-based scoring system:
+
+### Core Analysis
+- **Issue Activity Tracking**
+  - Weekly created/closed/open issues visualization
+  - Historical trend analysis
+  - Dual-axis graphs showing both weekly and monthly data
+
+### Priority-Based Analysis
+- **Scoring System**
   - PRIORITY_LOW: 1 point
   - PRIORITY_MEDIUM: 2 points
   - PRIORITY_HIGH: 3 points
-  - PRIORITY_CRITICAL: 5 points
-- Generation of key metric reports including:
-  - Issues activity visualization (created/closed/open)
-  - Priority-based score tracking
-  - Per-user activity analysis
-  - Weekly PDF reports with all visualizations
-  - Issue age tracking and analysis
-  - Label-based categorization
-- User-specific analysis and tracking
-- Configurable user exclusions
-- Export capabilities to CSV and JSON formats
+  - PRIORITY_SATANIC: 5 points
+  - UNCATEGORIZED: 0 points
 
-## Project Structure
-- `scripts/`
-  - `generate_report.sh`: Main script for generating reports
-  - `utils.py`: Utility functions for data processing and visualization
-- `configs/`
-  - `secrets.sh`: Configuration file for credentials
-  - `exclude_users.yaml`: List of users to exclude from analysis
-- `tmp/`: Directory for temporary data storage and generated reports
+### Visualization Types
+- **Activity Graphs**
+  - Overall issue activity trends
+  - Priority-level distribution
+  - Per-user activity metrics
+- **Score Analysis**
+  - Technical debt score tracking
+  - Priority-based issue distribution
+  - User performance metrics
 
-## Dependencies
-- Python 3.8 or higher
-- Python Libraries:
-  - requests>=2.25.0
-  - matplotlib>=3.3.0
-  - pandas>=1.2.0
-  - numpy>=1.19.0
-  - fpdf>=1.7.2
-  - PyYAML>=5.4.0
-  - Pillow>=8.0.0
-- Docker (optional for containerized execution)
-- GitHub API access (token required)
+### Report Generation
+- Automated PDF report generation
+- Configurable date ranges
+- Multiple visualization types in a single report
 
-## Setup
-1. Create `configs/secrets.sh` file with the following variables:
-   ```bash
-   export GITHUB_API_URL_ISSUES="https://api.github.com/repos/owner/repo/issues"
-   export GITHUB_ACCEPT="application/vnd.github.v3+json"
-   export GITHUB_TOKEN="your_github_token"
-   ```
+## Configuration
 
-2. (Optional) Configure user exclusions in `configs/exclude_users.yaml`
+### Environment Variables
+Create `configs/env_vars.sh` with desired settings:
+```bash
+# Analysis toggles
+export PERFORM_USER_ANALYSIS=false
+export PERFORM_SCORE_ANALYSIS=true
+export PERFORM_QUANTITATIVE_ANALYSIS=true
+export PERFORM_PRIORITY_ANALYSIS=true
 
-3. Run using Docker:
-   ```bash
-   docker build -t tech-debt-tool .
-   docker run -v $(pwd):/workspace tech-debt-tool
-   ```
-   Or run directly with Python:
-   ```bash
-   source configs/secrets.sh
-   python3 scripts/utils.py --start-week 1 --end-week 52
-   ```
+# Report generation settings
+export GENERATE_REPORT_CLEANUP=true
+export DELETE_PREVIOUS_REPORT=true
+export PRINT_LOGS_ANALYSIS_RESULTS=false
+```
 
-## Output
-The tool generates:
-- `issues_activity.png`: Weekly visualization of issue creation/closure
-- `issues_score.png`: Weekly visualization of technical debt score
-- Per-user activity and score graphs (if PERFORM_USER_ANALYSIS=true)
+### Authentication
+Create `configs/secrets.sh` with your GitHub credentials:
+```bash
+export GITHUB_TOKEN="your_github_token"
+export GITHUB_API_URL_ISSUES="https://api.github.com/repos/owner/repo/issues"
+export GITHUB_ACCEPT="application/vnd.github.v3+json"
+```
+
+## Installation
+
+### Using Docker
+1. Build the container:
+```bash
+docker build -f .devcontainer/Dockerfile -t github-issues-analysis .
+```
+
+2. Run the analysis:
+```bash
+docker run -v $(pwd):/workspace github-issues-analysis ./scripts/generate_report.sh
+```
+
+### Manual Installation
+1. Install Python dependencies:
+```bash
+pip install matplotlib pandas numpy fpdf requests PyYAML tabulate
+```
+
+2. Run the analysis script:
+```bash
+./scripts/generate_report.sh [start_week] [end_week]
+```
+
+## Usage
+
+### Basic Usage
+```bash
+./scripts/generate_report.sh 1 52  # Analyze entire year
+```
+
+### Script Options
+```bash
+Usage: generate_report.sh [options] [start_week] [end_week]
+
+Options:
+  -h, --help    Show help message
+  -d            Delete temporary files after execution
+
+Arguments:
+  start_week    Week number (1-52), default: 1
+  end_week      Week number (1-52), default: current week
+```
+
+## Output Files
+
+### Generated Reports
+- `issues_activity.png`: Overall issue activity visualization
+- `issues_score.png`: Priority-based score tracking
+- `issues_priority_levels.png`: Priority level distribution
+- `{username}_activity.png`: Per-user activity graphs
+- `{username}_score.png`: Per-user score tracking
 - Consolidated PDF report containing all visualizations
 
-## Troubleshooting
-Common issues and solutions:
-- Rate limiting: If you hit GitHub API rate limits, ensure your token has appropriate permissions
-- Memory issues: For large repositories, increase Docker container memory limits
-- Missing data: Verify GitHub token permissions include issue access
+### Data Files
+- `tmp/issues.json`: Cached GitHub issues data
+- Generated visualizations in `tmp/` directory
+
+## Project Structure
+```
+.
+├── configs/
+│   ├── env_vars.sh    # Configuration flags
+│   ├── secrets.sh     # GitHub credentials
+│   └── scores.yaml    # Priority scoring configuration
+├── scripts/
+│   ├── generate_report.sh  # Main execution script
+│   └── utils.py           # Analysis utilities
+├── tmp/                   # Generated files
+└── .devcontainer/
+    └── Dockerfile        # Development container configuration
+```
+
+## Dependencies
+- Python 3.x
+- Required Python packages:
+  - matplotlib
+  - pandas
+  - numpy
+  - fpdf
+  - requests
+  - PyYAML
+  - tabulate
+  - Pillow (for PDF generation)
+
+## Contributing
+1. Fork the repository
+2. Create a feature branch
+3. Submit a pull request
+
+## License
+[Add your license information here]

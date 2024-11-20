@@ -912,7 +912,7 @@ def create_issues_score_levels_graph(
 ) -> None:
     """
     Creates and saves a graph showing weekly GitHub issues by priority level.
-    Shows stacked bars for each priority level (LOW, MEDIUM, HIGH, SATANIC).
+    Shows stacked bars for each priority level with dual x-axes for weeks and months.
 
     Args:
         issues_data (list): List of GitHub issues
@@ -939,10 +939,13 @@ def create_issues_score_levels_graph(
         for priority in priority_data.keys():
             priority_data[priority].append(categories[priority]["issue_count"])
 
-    # Create the visualization
-    plt.figure(figsize=(12, 6))
+    # Create the visualization with dual x-axes
+    fig, ax1 = plt.subplots(figsize=(12, 6))
+    
+    # Create second x-axis for months
+    ax2 = ax1.twiny()
 
-    # Create stacked bar chart
+    # Create stacked bar chart on primary axis
     bottom = np.zeros(len(weeks))
     colors = {
         "PRIORITY_LOW": "#7FBA00",      # Green
@@ -953,7 +956,7 @@ def create_issues_score_levels_graph(
     }
 
     for priority, counts in priority_data.items():
-        plt.bar(weeks, counts, bottom=bottom, label=priority, color=colors[priority], alpha=0.7)
+        ax1.bar(weeks, counts, bottom=bottom, label=priority, color=colors[priority], alpha=0.7)
         bottom += np.array(counts)
 
         # Add value labels if count > 0
@@ -961,17 +964,40 @@ def create_issues_score_levels_graph(
             if count > 0:
                 # Position the text in the middle of its segment
                 height = bottom[i] - (count / 2)
-                plt.text(weeks[i], height, str(count), ha='center', va='center')
+                ax1.text(weeks[i], height, str(count), ha='center', va='center')
 
+    # Set up the primary x-axis (weeks)
+    ax1.set_xlim(min(weeks) - 0.5, max(weeks) + 0.5)
+    ax1.set_xticks(weeks)
+    ax1.set_xlabel("Week Number")
+    
+    # Set up the secondary x-axis (months)
+    month_positions = []
+    month_labels = []
+    
+    # Get unique months and their positions
+    for week in weeks:
+        week_start = get_week_start_date(current_year, week)
+        month_name = week_start.strftime("%B")
+        month_pos = week
+        
+        # Only add month if it's not already in labels or if it's the first week
+        if not month_labels or month_labels[-1] != month_name:
+            month_positions.append(month_pos)
+            month_labels.append(month_name)
+    
+    ax2.set_xlim(ax1.get_xlim())
+    ax2.set_xticks(month_positions)
+    ax2.set_xticklabels(month_labels)
+    
+    # Adjust layout to prevent label overlap
     plt.title("GitHub Issues by Priority Level per Week")
-    plt.xlabel("Week Number")
-    plt.ylabel("Number of Issues")
-    plt.grid(True, linestyle="--", alpha=0.7)
-    plt.legend()
+    ax1.set_ylabel("Number of Issues")
+    ax1.grid(True, linestyle="--", alpha=0.7)
+    ax1.legend(loc='upper left', bbox_to_anchor=(1.05, 1))
 
-    # Force x-axis to show all weeks
-    plt.xticks(weeks)
-    plt.xlim(min(weeks) - 0.5, max(weeks) + 0.5)
+    # Adjust layout to make room for the legend
+    plt.subplots_adjust(right=0.85)
 
     # Save the plot
     plt.savefig(
