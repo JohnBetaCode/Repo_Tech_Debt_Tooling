@@ -9,8 +9,11 @@ export PERFORM_USER_ANALYSIS=false
 # Toggle for analyzing score-related metrics
 export PERFORM_SCORE_ANALYSIS=true
 
+# Toggle for analyzing quantitative-related metrics
+export PERFORM_QUANTITATIVE_ANALYSIS=true
+
 # Whether to print analysis results to logs
-export PRINT_LOGS_ANALYSIS_RESULTS=true
+export PRINT_LOGS_ANALYSIS_RESULTS=false
 
 # Whether to delete previous report before generating new one
 export DELETE_PREVIOUS_REPORT=true

@@ -1014,20 +1014,23 @@ if __name__ == "__main__":
         print("\nWeekly Issues Summary:")
         print(tabulate(table_data, headers=headers, tablefmt="grid"))
 
-    # Create visualization
-    create_issues_activity_graph(
-        issues_data=issues_data,
-        start_week=start_week,
-        end_week=end_week,
-        current_year=current_year,
-    )
+    # Create activity graph only if PERFORM_SCORE_ANALYSIS is true
+    if os.getenv("PERFORM_QUANTITATIVE_ANALYSIS", "false").lower() == "true":
+        create_issues_activity_graph(
+            issues_data=issues_data,
+            start_week=start_week,
+            end_week=end_week,
+            current_year=current_year,
+        )
 
-    create_issues_score_graph(
-        issues_data=issues_data,
-        start_week=start_week,
-        end_week=end_week,
-        current_year=current_year,
-    )
+    # Create score graph only if PERFORM_SCORE_ANALYSIS is true
+    if os.getenv("PERFORM_SCORE_ANALYSIS", "false").lower() == "true":
+        create_issues_score_graph(
+            issues_data=issues_data,
+            start_week=start_week,
+            end_week=end_week,
+            current_year=current_year,
+        )
 
     # --------------------------------------------------------------
     # Perform user analysis only if PERFORM_USER_ANALYSIS is true
