@@ -1011,6 +1011,95 @@ def create_issues_score_levels_graph(
     plt.close()
 
 
+def create_users_pdf_report(
+    start_week: int, end_week: int, save_path: str = "/workspace/tmp"
+) -> None:
+    """
+    Creates a single PDF report containing all user-specific PNG files from user subdirectories.
+    Uses letter width (8.5 inches) and adjusts height based on content.
+
+    Args:
+        start_week (int): Starting week number
+        end_week (int): Ending week number
+        save_path (str, optional): Base directory containing user folders. Defaults to "/workspace/tmp"
+    """
+    try:
+        from PIL import Image
+        from datetime import datetime
+        import glob
+
+        # Get dates for filename
+        start_date = get_week_start_date(datetime.now().year, start_week)
+        end_date = get_week_end_date(datetime.now().year, end_week)
+
+        # Constants for PDF layout
+        DPI = 300
+        LETTER_WIDTH = int(8.5 * DPI)  # 8.5 inches * 300 DPI
+        MARGIN = int(0.5 * DPI)  # 0.5 inch margin
+        SPACING = int(0.25 * DPI)  # 0.25 inch spacing between images
+        CONTENT_WIDTH = LETTER_WIDTH - (2 * MARGIN)
+
+        # Process user directories
+        users_dir = os.path.join(save_path, "users")
+        if not os.path.exists(users_dir):
+            print("No users directory found")
+            return
+
+        # Collect all user PNGs
+        all_user_pngs = []
+        for user_dir in sorted(os.listdir(users_dir)):  # Sort to ensure consistent order
+            user_path = os.path.join(users_dir, user_dir)
+            if os.path.isdir(user_path):
+                user_pngs = sorted(glob.glob(os.path.join(user_path, "*.png")))
+                all_user_pngs.extend(user_pngs)
+
+        if not all_user_pngs:
+            print("No user PNG files found")
+            return
+
+        # Process images and calculate total height needed
+        processed_images = []
+        total_height = MARGIN  # Start with top margin
+
+        for image_path in all_user_pngs:
+            # Open and process the PNG
+            img = Image.open(image_path)
+            if img.mode == "RGBA":
+                img = img.convert("RGB")
+
+            # Scale image to fit content width while maintaining aspect ratio
+            scale = CONTENT_WIDTH / img.width
+            new_width = CONTENT_WIDTH
+            new_height = int(img.height * scale)
+            img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+
+            processed_images.append(img)
+            total_height += new_height + SPACING
+
+        total_height += MARGIN - SPACING  # Add bottom margin and remove last spacing
+
+        # Create the final image
+        final_image = Image.new("RGB", (LETTER_WIDTH, total_height), "white")
+        y_position = MARGIN
+
+        # Paste all images
+        for img in processed_images:
+            x_position = MARGIN
+            final_image.paste(img, (x_position, y_position))
+            y_position += img.height + SPACING
+
+        # Create output filename and save PDF
+        pdf_filename = f"user_reports_W{start_week}-{start_date}_to_W{end_week}-{end_date}.pdf"
+        pdf_path = os.path.join(save_path, pdf_filename)
+        final_image.save(pdf_path, resolution=DPI)
+        print(f"Users PDF report saved as '{pdf_filename}'")
+
+    except ImportError:
+        print("Error: PIL (Pillow) library is required. Install it using: pip install Pillow")
+    except Exception as e:
+        print(f"Error creating users PDF: {str(e)}")
+
+
 # ----------------------------------------------------------------
 if __name__ == "__main__":
 
@@ -1204,6 +1293,10 @@ if __name__ == "__main__":
     # --------------------------------------------------------------
     # After creating all graphs, merge them into PDF
     create_pdf_report(start_week, end_week)
+
+    # --------------------------------------------------------------
+    # Create users PDF report
+    create_users_pdf_report(start_week, end_week)
 
 
 

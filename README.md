@@ -24,7 +24,7 @@ This tool provides detailed analysis and visualization of GitHub issues data, en
 ### Visualization Types
 - **Activity Graphs**
   - Overall issue activity trends
-  - Priority-level distribution
+  - Priority-level distribution with dual-axis (weeks/months)
   - Per-user activity metrics
 - **Score Analysis**
   - Technical debt score tracking
@@ -32,9 +32,12 @@ This tool provides detailed analysis and visualization of GitHub issues data, en
   - User performance metrics
 
 ### Report Generation
-- Automated PDF report generation
+- Multiple PDF reports:
+  - Main report with overall metrics
+  - Separate user-specific report
 - Configurable date ranges
-- Multiple visualization types in a single report
+- Multiple visualization types
+- Automatic cleanup options
 
 ## Configuration
 
@@ -42,19 +45,27 @@ This tool provides detailed analysis and visualization of GitHub issues data, en
 Create `configs/env_vars.sh` with desired settings:
 ```bash
 # Analysis toggles
-export PERFORM_USER_ANALYSIS=false
+export PERFORM_USER_ANALYSIS=true
 export PERFORM_SCORE_ANALYSIS=true
 export PERFORM_QUANTITATIVE_ANALYSIS=true
 export PERFORM_PRIORITY_ANALYSIS=true
 
 # Report generation settings
 export GENERATE_REPORT_CLEANUP=true
-export DELETE_PREVIOUS_REPORT=true
+export DELETE_PREVIOUS_REPORT=false
 export PRINT_LOGS_ANALYSIS_RESULTS=false
 ```
 
+### User Exclusions
+Create `configs/exclude_users.yaml` to specify users to exclude from analysis:
+```yaml
+excluded_users:
+  - user1
+  - user2
+```
+
 ### Authentication
-Create `configs/secrets.sh` with your GitHub credentials:
+Create `configs/secrets.sh` with your GitHub credentials or ask to your manager for it:
 ```bash
 export GITHUB_TOKEN="your_github_token"
 export GITHUB_API_URL_ISSUES="https://api.github.com/repos/owner/repo/issues"
@@ -62,6 +73,16 @@ export GITHUB_ACCEPT="application/vnd.github.v3+json"
 ```
 
 ## Installation
+
+### Using Dev Container
+1. Open the project in VS Code
+2. Press `Ctrl+Shift+P` (Windows/Linux) or `Cmd+Shift+P` (macOS)
+3. Type "Dev Containers: Reopen in Container" and select it
+4. Wait for the container to build and start
+5. Run the analysis:
+```bash
+./scripts/generate_report.sh
+```
 
 ### Using Docker
 1. Build the container:
@@ -110,14 +131,18 @@ Arguments:
 ### Generated Reports
 - `issues_activity.png`: Overall issue activity visualization
 - `issues_score.png`: Priority-based score tracking
-- `issues_priority_levels.png`: Priority level distribution
-- `{username}_activity.png`: Per-user activity graphs
-- `{username}_score.png`: Per-user score tracking
-- Consolidated PDF report containing all visualizations
+- `issues_priority_levels.png`: Priority level distribution with dual-axis
+- User-specific files in `tmp/users/{username}/`:
+  - `{username}_activity.png`: Per-user activity graphs
+  - `{username}_score.png`: Per-user score tracking
+- PDF Reports:
+  - Main report with overall metrics
+  - User-specific report containing all user graphs
 
 ### Data Files
 - `tmp/issues.json`: Cached GitHub issues data
 - Generated visualizations in `tmp/` directory
+- User-specific visualizations in `tmp/users/{username}/` directories
 
 ## Project Structure
 ```
