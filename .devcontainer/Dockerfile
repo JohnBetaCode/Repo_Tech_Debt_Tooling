@@ -20,7 +20,6 @@ RUN apt update && apt install -y \
     build-essential \
     git \
     curl \
-    PyYAML \
     # ---------------------------------
     && apt autoremove && apt clean -y \
     && rm -rf /var/lib/apt/lists/*
@@ -52,6 +51,7 @@ RUN python3 -m pip install --upgrade pip wheel \
     numpy \ 
     fpdf \
     requests \
+    PyYAML \
     --ignore-installed \
     && rm -rf /home/ada/.cache/pip
 
