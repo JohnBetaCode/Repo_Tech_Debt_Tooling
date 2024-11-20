@@ -940,7 +940,7 @@ def create_issues_score_levels_graph(
             priority_data[priority].append(categories[priority]["issue_count"])
 
     # Create the visualization with dual x-axes
-    fig, ax1 = plt.subplots(figsize=(12, 6))
+    fig, ax1 = plt.subplots(figsize=(15, 8))
     
     # Create second x-axis for months
     ax2 = ax1.twiny()
@@ -994,10 +994,12 @@ def create_issues_score_levels_graph(
     plt.title("GitHub Issues by Priority Level per Week")
     ax1.set_ylabel("Number of Issues")
     ax1.grid(True, linestyle="--", alpha=0.7)
-    ax1.legend(loc='upper left', bbox_to_anchor=(1.05, 1))
+    
+    # Move legend inside the plot area in the upper right corner
+    ax1.legend(loc='upper left')
 
-    # Adjust layout to make room for the legend
-    plt.subplots_adjust(right=0.85)
+    # Remove the subplots_adjust call since we're keeping the legend inside
+    # plt.subplots_adjust(right=0.85)  # Remove this line
 
     # Save the plot
     plt.savefig(
