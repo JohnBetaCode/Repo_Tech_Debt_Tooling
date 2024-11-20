@@ -4,7 +4,7 @@
 export GENERATE_REPORT_CLEANUP=true
 
 # Toggle for analyzing user-related metrics
-export PERFORM_USER_ANALYSIS=false
+export PERFORM_USER_ANALYSIS=true
 
 # Toggle for analyzing score-related metrics
 export PERFORM_SCORE_ANALYSIS=true
@@ -19,4 +19,4 @@ export PRINT_LOGS_ANALYSIS_RESULTS=false
 export PERFORM_PRIORITY_ANALYSIS=true
 
 # Whether to delete previous report before generating new one
-export DELETE_PREVIOUS_REPORT=true
+export DELETE_PREVIOUS_REPORT=false

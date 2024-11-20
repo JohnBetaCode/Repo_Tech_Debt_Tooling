@@ -1156,20 +1156,41 @@ if __name__ == "__main__":
     # --------------------------------------------------------------
     # Perform user analysis only if PERFORM_USER_ANALYSIS is true
     if os.getenv("PERFORM_USER_ANALYSIS", "true").lower() == "true":
+        # Load excluded users from YAML file
+        excluded_users = []
+        try:
+            import yaml
+            with open('configs/exclude_users.yaml', 'r') as file:
+                config = yaml.safe_load(file)
+                excluded_users = config.get('excluded_users', [])
+        except Exception as e:
+            print(f"Warning: Could not load excluded users: {str(e)}")
+
+        # Create users directory in tmp
+        users_base_path = os.path.join("/workspace/tmp", "users")
+        os.makedirs(users_base_path, exist_ok=True)
+
         # Iterate over the weeks for user analysis
-        unique_users = get_unique_users_from_issues(issues_data)
+        unique_users = [user for user in get_unique_users_from_issues(issues_data) 
+                       if user not in excluded_users]
+        
         print("\nUnique active users involved in issues:")
         for user in unique_users:
             print(f"- {user}")
+            # Create user-specific directory
+            user_path = os.path.join(users_base_path, user)
+            os.makedirs(user_path, exist_ok=True)
 
         print("\nCreating graphs for each user:")
         for user in unique_users:
+            user_path = os.path.join(users_base_path, user)
             create_user_issues_activity_graph(
                 issues_data=issues_data,
                 start_week=start_week,
                 end_week=end_week,
                 current_year=current_year,
                 username=user,
+                save_path=user_path,  # Use user-specific path
             )
             create_user_issues_score_graph(
                 issues_data=issues_data,
@@ -1177,6 +1198,7 @@ if __name__ == "__main__":
                 end_week=end_week,
                 current_year=current_year,
                 username=user,
+                save_path=user_path,  # Use user-specific path
             )
 
     # --------------------------------------------------------------
