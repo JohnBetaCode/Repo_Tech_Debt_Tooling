@@ -52,6 +52,7 @@ RUN python3 -m pip install --upgrade pip wheel \
     fpdf \
     requests \
     PyYAML \
+    tabulate \
     --ignore-installed \
     && rm -rf /home/ada/.cache/pip
 

@@ -6,6 +6,7 @@ from datetime import datetime
 import argparse
 from datetime import date, timedelta
 import matplotlib.pyplot as plt
+from tabulate import tabulate
 
 
 # ----------------------------------------------------------------
@@ -550,7 +551,7 @@ def create_issues_score_graph(
     plt.savefig(
         os.path.join(save_path, "issues_score.png"), bbox_inches="tight", dpi=300
     )
-    print("\nGraph saved as 'issues_score.png'")
+    print("Graph saved as 'issues_score.png'")
     plt.close()
 
 
@@ -667,7 +668,7 @@ def create_user_issues_activity_graph(
     # Change filename to start with username
     filename = f"{username}_activity.png"
     plt.savefig(os.path.join(save_path, filename), bbox_inches="tight", dpi=300)
-    print(f"\nGraph saved as '{filename}'")
+    print(f"Graph saved as '{filename}'")
     plt.close()
 
 
@@ -891,7 +892,7 @@ def create_pdf_report(
 
         # Save as PDF
         final_image.save(pdf_path, resolution=DPI)
-        print(f"\nPDF report saved as '{pdf_filename}'")
+        print(f"PDF report saved as '{pdf_filename}'")
 
     except ImportError:
         print(
@@ -975,8 +976,11 @@ if __name__ == "__main__":
 
     # --------------------------------------------------------------
     # Iterate over the weeks for issues analysis
+    # Initialize table data
+    table_data = []
+    headers = ["Week", "Open Issues", "Created Issues", "Closed Issues", "Score"]
+    
     for week in range(start_week, end_week + 1):
-
         # ----------------------------------------------------------
         # Get issues opened up to date
         open_issues_up_to_date = get_open_issues_up_to_date(
@@ -993,14 +997,22 @@ if __name__ == "__main__":
             issues=issues_data, start_date=week_start, end_date=week_end
         )
 
-        print(f"Week {week}:")
-        print(f"  Issues opened at the end of the week: {len(open_issues_up_to_date)}")
-        print(f"  Issues created this week: {len(issues_created_this_week)}")
-        print(f"  Issues closed this week: {len(issues_closed_this_week)}")
         categories = categorize_issues_by_priority(issues_closed_this_week)
         total_score = sum(cat["total_score"] for cat in categories.values())
-        # print(json.dumps(categories, indent=2))
-        # print(f"Total Score: {total_score}")
+        
+        # Add row to table data
+        table_data.append([
+            week,
+            len(open_issues_up_to_date),
+            len(issues_created_this_week),
+            len(issues_closed_this_week),
+            total_score
+        ])
+
+    # Print table only if PRINT_LOGS_ANALYSIS_RESULTS is true
+    if os.getenv("PRINT_LOGS_ANALYSIS_RESULTS", "false").lower() == "true":
+        print("\nWeekly Issues Summary:")
+        print(tabulate(table_data, headers=headers, tablefmt="grid"))
 
     # Create visualization
     create_issues_activity_graph(
