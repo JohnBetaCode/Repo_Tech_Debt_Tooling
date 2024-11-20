@@ -7,6 +7,7 @@ import argparse
 from datetime import date, timedelta
 import matplotlib.pyplot as plt
 from tabulate import tabulate
+import numpy as np
 
 
 # ----------------------------------------------------------------
@@ -902,6 +903,86 @@ def create_pdf_report(
         print(f"Error creating PDF: {str(e)}")
 
 
+def create_issues_score_levels_graph(
+    issues_data: list,
+    start_week: int,
+    end_week: int,
+    current_year: int,
+    save_path: str = "/workspace/tmp",
+) -> None:
+    """
+    Creates and saves a graph showing weekly GitHub issues by priority level.
+    Shows stacked bars for each priority level (LOW, MEDIUM, HIGH, SATANIC).
+
+    Args:
+        issues_data (list): List of GitHub issues
+        start_week (int): Starting week number (1-52)
+        end_week (int): Ending week number (1-52)
+        current_year (int): Year for the analysis
+        save_path (str, optional): Directory to save the graph. Defaults to "/workspace/tmp"
+    """
+    weeks = list(range(start_week, end_week + 1))
+    priority_data = {
+        "PRIORITY_LOW": [],
+        "PRIORITY_MEDIUM": [],
+        "PRIORITY_HIGH": [],
+        "PRIORITY_SATANIC": [],
+        "UNCATEGORIZED": []
+    }
+
+    # Collect data for each week
+    for week in weeks:
+        week_end = get_week_end_date(current_year, week)
+        open_issues = get_open_issues_up_to_date(issues_data, week_end)
+        categories = categorize_issues_by_priority(open_issues)
+        
+        for priority in priority_data.keys():
+            priority_data[priority].append(categories[priority]["issue_count"])
+
+    # Create the visualization
+    plt.figure(figsize=(12, 6))
+
+    # Create stacked bar chart
+    bottom = np.zeros(len(weeks))
+    colors = {
+        "PRIORITY_LOW": "#7FBA00",      # Green
+        "PRIORITY_MEDIUM": "#FFA500",    # Orange
+        "PRIORITY_HIGH": "#F35325",      # Red
+        "PRIORITY_SATANIC": "#8B0000",   # Dark Red
+        "UNCATEGORIZED": "#A9A9A9"       # Gray
+    }
+
+    for priority, counts in priority_data.items():
+        plt.bar(weeks, counts, bottom=bottom, label=priority, color=colors[priority], alpha=0.7)
+        bottom += np.array(counts)
+
+        # Add value labels if count > 0
+        for i, count in enumerate(counts):
+            if count > 0:
+                # Position the text in the middle of its segment
+                height = bottom[i] - (count / 2)
+                plt.text(weeks[i], height, str(count), ha='center', va='center')
+
+    plt.title("GitHub Issues by Priority Level per Week")
+    plt.xlabel("Week Number")
+    plt.ylabel("Number of Issues")
+    plt.grid(True, linestyle="--", alpha=0.7)
+    plt.legend()
+
+    # Force x-axis to show all weeks
+    plt.xticks(weeks)
+    plt.xlim(min(weeks) - 0.5, max(weeks) + 0.5)
+
+    # Save the plot
+    plt.savefig(
+        os.path.join(save_path, "issues_priority_levels.png"), 
+        bbox_inches="tight", 
+        dpi=300
+    )
+    print("Graph saved as 'issues_priority_levels.png'")
+    plt.close()
+
+
 # ----------------------------------------------------------------
 if __name__ == "__main__":
 
@@ -1014,6 +1095,7 @@ if __name__ == "__main__":
         print("\nWeekly Issues Summary:")
         print(tabulate(table_data, headers=headers, tablefmt="grid"))
 
+    # --------------------------------------------------------------
     # Create activity graph only if PERFORM_SCORE_ANALYSIS is true
     if os.getenv("PERFORM_QUANTITATIVE_ANALYSIS", "false").lower() == "true":
         create_issues_activity_graph(
@@ -1023,9 +1105,20 @@ if __name__ == "__main__":
             current_year=current_year,
         )
 
+    # --------------------------------------------------------------
     # Create score graph only if PERFORM_SCORE_ANALYSIS is true
     if os.getenv("PERFORM_SCORE_ANALYSIS", "false").lower() == "true":
         create_issues_score_graph(
+            issues_data=issues_data,
+            start_week=start_week,
+            end_week=end_week,
+            current_year=current_year,
+        )
+
+    # --------------------------------------------------------------
+    # Create priority levels graph only if PERFORM_PRIORITY_ANALYSIS is true
+    if os.getenv("PERFORM_PRIORITY_ANALYSIS", "false").lower() == "true":
+        create_issues_score_levels_graph(
             issues_data=issues_data,
             start_week=start_week,
             end_week=end_week,
@@ -1061,5 +1154,7 @@ if __name__ == "__main__":
     # --------------------------------------------------------------
     # After creating all graphs, merge them into PDF
     create_pdf_report(start_week, end_week)
+
+
 
     exit()

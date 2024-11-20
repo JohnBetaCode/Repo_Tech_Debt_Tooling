@@ -15,5 +15,8 @@ export PERFORM_QUANTITATIVE_ANALYSIS=true
 # Whether to print analysis results to logs
 export PRINT_LOGS_ANALYSIS_RESULTS=false
 
+# Toggle for analyzing priority-related metrics
+export PERFORM_PRIORITY_ANALYSIS=true
+
 # Whether to delete previous report before generating new one
 export DELETE_PREVIOUS_REPORT=true
