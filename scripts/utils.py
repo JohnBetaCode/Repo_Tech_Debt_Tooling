@@ -584,190 +584,6 @@ def get_unique_users_from_issues(issues: list) -> list:
     return sorted(list(unique_users))
 
 
-def create_user_issues_activity_graph(
-    issues_data: list,
-    start_week: int,
-    end_week: int,
-    current_year: int,
-    username: str,
-    save_path: str = "/workspace/tmp",
-) -> None:
-    """
-    Creates and saves a graph showing weekly GitHub issues activity for a specific user.
-    Uses bars for created/closed issues and line for open issues.
-
-    Args:
-        issues_data (list): List of GitHub issues
-        start_week (int): Starting week number (1-52)
-        end_week (int): Ending week number (1-52)
-        current_year (int): Year for the analysis
-        username (str): GitHub username to filter issues
-        save_path (str, optional): Directory to save the graph. Defaults to "/workspace/tmp"
-    """
-    # Filter issues for the specific user
-    user_issues = [
-        issue
-        for issue in issues_data
-        if any(
-            assignee.get("login") == username for assignee in issue.get("assignees", [])
-        )
-    ]
-
-    # Initialize data structures for tracking weekly counts
-    weeks_range = range(start_week, end_week + 1)
-    created_issues = {week: 0 for week in weeks_range}
-    closed_issues = {week: 0 for week in weeks_range}
-    open_issues = {week: 0 for week in weeks_range}
-
-    # Process each issue
-    for issue in user_issues:
-        created_date = datetime.strptime(issue["created_at"], "%Y-%m-%dT%H:%M:%SZ")
-        closed_date = (
-            None
-            if not issue["closed_at"]
-            else datetime.strptime(issue["closed_at"], "%Y-%m-%dT%H:%M:%SZ")
-        )
-
-        if created_date.year == current_year:
-            created_week = created_date.isocalendar()[1]
-            if start_week <= created_week <= end_week:
-                created_issues[created_week] += 1
-
-        if closed_date and closed_date.year == current_year:
-            closed_week = closed_date.isocalendar()[1]
-            if start_week <= closed_week <= end_week:
-                closed_issues[closed_week] += 1
-
-    # Calculate running total of open issues
-    running_total = 0
-    for week in weeks_range:
-        running_total += created_issues[week] - closed_issues[week]
-        open_issues[week] = running_total
-
-    # Create the visualization
-    plt.figure(figsize=(15, 7))
-    weeks = list(weeks_range)
-
-    plt.bar(
-        weeks, [created_issues[w] for w in weeks], label="Created Issues", alpha=0.6
-    )
-    plt.bar(weeks, [closed_issues[w] for w in weeks], label="Closed Issues", alpha=0.6)
-    plt.plot(
-        weeks,
-        [open_issues[w] for w in weeks],
-        label="Open Issues",
-        color="red",
-        linewidth=2,
-    )
-
-    plt.xlabel("Week Number")
-    plt.ylabel("Number of Issues")
-    plt.title(f"GitHub Issues Activity by Week for {username}")
-    plt.legend()
-    plt.grid(True, alpha=0.3)
-
-    # Change filename to start with username
-    filename = f"{username}_activity.png"
-    plt.savefig(os.path.join(save_path, filename), bbox_inches="tight", dpi=300)
-    print(f"Graph saved as '{filename}'")
-    plt.close()
-
-
-def create_user_issues_score_graph(
-    issues_data: list,
-    start_week: int,
-    end_week: int,
-    current_year: int,
-    username: str,
-    save_path: str = "/workspace/tmp",
-) -> None:
-    """
-    Creates and saves a graph showing weekly GitHub issues scores for a specific user.
-    Uses bars for created/closed issues scores and line for open issues scores.
-
-    Args:
-        issues_data (list): List of GitHub issues
-        start_week (int): Starting week number (1-52)
-        end_week (int): Ending week number (1-52)
-        current_year (int): Year for the analysis
-        username (str): GitHub username to filter issues
-        save_path (str, optional): Directory to save the graph. Defaults to "/workspace/tmp"
-    """
-    # Filter issues for the specific user
-    user_issues = [
-        issue
-        for issue in issues_data
-        if any(
-            assignee.get("login") == username for assignee in issue.get("assignees", [])
-        )
-    ]
-
-    # Initialize data structures for tracking weekly scores
-    weeks_range = range(start_week, end_week + 1)
-    created_scores = {week: 0 for week in weeks_range}
-    closed_scores = {week: 0 for week in weeks_range}
-    open_scores = {week: 0 for week in weeks_range}
-
-    # Process each issue
-    for issue in user_issues:
-        score = calculate_issue_score(issue)
-        created_date = datetime.strptime(issue["created_at"], "%Y-%m-%dT%H:%M:%SZ")
-        closed_date = (
-            None
-            if not issue["closed_at"]
-            else datetime.strptime(issue["closed_at"], "%Y-%m-%dT%H:%M:%SZ")
-        )
-
-        if created_date.year == current_year:
-            created_week = created_date.isocalendar()[1]
-            if start_week <= created_week <= end_week:
-                created_scores[created_week] += score
-
-        if closed_date and closed_date.year == current_year:
-            closed_week = closed_date.isocalendar()[1]
-            if start_week <= closed_week <= end_week:
-                closed_scores[closed_week] += score
-
-    # Calculate running total of open issue scores
-    running_total = 0
-    for week in weeks_range:
-        running_total += created_scores[week] - closed_scores[week]
-        open_scores[week] = running_total
-
-    # Create the visualization
-    plt.figure(figsize=(15, 7))
-    weeks = list(weeks_range)
-
-    plt.bar(
-        weeks,
-        [created_scores[w] for w in weeks],
-        label="Created Issues Score",
-        alpha=0.6,
-    )
-    plt.bar(
-        weeks, [closed_scores[w] for w in weeks], label="Closed Issues Score", alpha=0.6
-    )
-    plt.plot(
-        weeks,
-        [open_scores[w] for w in weeks],
-        label="Open Issues Score",
-        color="red",
-        linewidth=2,
-    )
-
-    plt.xlabel("Week Number")
-    plt.ylabel("Issue Score")
-    plt.title(f"GitHub Issues Priority Scores by Week for {username}")
-    plt.legend()
-    plt.grid(True, alpha=0.3)
-
-    # Change filename to start with username
-    filename = f"{username}_score.png"
-    plt.savefig(os.path.join(save_path, filename), bbox_inches="tight", dpi=300)
-    print(f"\nGraph saved as '{filename}'")
-    plt.close()
-
-
 def get_unique_users_from_issues(issues_data: list) -> list:
     """
     Extract unique users from issues assignees.
@@ -1100,6 +916,292 @@ def create_users_pdf_report(
         print(f"Error creating users PDF: {str(e)}")
 
 
+def get_user_weekly_issues(
+    issues_data: list,
+    username: str,
+    start_week: int,
+    end_week: int,
+    current_year: int
+) -> list:
+    """
+    Gets the number of issues assigned to a user for each week.
+
+    Args:
+        issues_data (list): List of GitHub issues
+        username (str): GitHub username to analyze
+        start_week (int): Starting week number (1-52)
+        end_week (int): Ending week number (1-52)
+        current_year (int): Year for the analysis
+
+    Returns:
+        list: List of dictionaries containing week number and issue counts
+        Example: [
+            {'week': 1, 'open_issues': 5, 'created_issues': 2, 'closed_issues': 1},
+            {'week': 2, 'open_issues': 6, 'created_issues': 3, 'closed_issues': 2},
+            ...
+        ]
+    """
+    weekly_data = []
+
+    # Filter issues assigned to the user
+    user_issues = [
+        issue for issue in issues_data
+        if any(assignee.get('login') == username for assignee in issue.get('assignees', []))
+    ]
+
+    for week in range(start_week, end_week + 1):
+        week_start = get_week_start_date(current_year, week)
+        week_end = get_week_end_date(current_year, week)
+
+        # Get issues opened up to date
+        open_issues = get_open_issues_up_to_date(user_issues, week_end)
+        
+        # Get issues created and closed during this week
+        created_issues = get_issues_created_between_dates(
+            user_issues, week_start, week_end
+        )
+        closed_issues = get_issues_closed_between_dates(
+            user_issues, week_start, week_end
+        )
+
+        weekly_data.append({
+            'week': week,
+            'open_issues': len(open_issues),
+            'created_issues': len(created_issues),
+            'closed_issues': len(closed_issues)
+        })
+
+    return weekly_data
+
+
+def create_user_issues_graph(
+    user_weekly_data: list,
+    username: str,
+    save_path: str,
+) -> None:
+    """
+    Creates and saves a graph showing weekly GitHub issues activity for a specific user.
+    Uses bars for created/closed issues and line for open issues.
+
+    Args:
+        user_weekly_data (list): List of dictionaries containing weekly data for the user
+        username (str): GitHub username
+        save_path (str): Directory to save the graph
+    """
+    # Extract data for plotting
+    weeks = [data['week'] for data in user_weekly_data]
+    open_issues = [data['open_issues'] for data in user_weekly_data]
+    created_issues = [data['created_issues'] for data in user_weekly_data]
+    closed_issues = [data['closed_issues'] for data in user_weekly_data]
+
+    # Create the visualization
+    plt.figure(figsize=(12, 6))
+
+    # Plot bars for created and closed issues
+    bar_width = 0.35
+    bar_positions_created = [x - bar_width/2 for x in weeks]
+    bar_positions_closed = [x + bar_width/2 for x in weeks]
+
+    plt.bar(
+        bar_positions_created,
+        created_issues,
+        bar_width,
+        label="Created Issues",
+        color="g",
+        alpha=0.6
+    )
+    plt.bar(
+        bar_positions_closed,
+        closed_issues,
+        bar_width,
+        label="Closed Issues",
+        color="r",
+        alpha=0.6
+    )
+
+    # Plot line for open issues
+    plt.plot(
+        weeks,
+        open_issues,
+        "b:",
+        label="Open Issues at week end",
+        marker="o",
+        linewidth=2
+    )
+
+    # Add value labels
+    for i, value in enumerate(created_issues):
+        plt.text(bar_positions_created[i], value, str(value), ha='center', va='bottom')
+    for i, value in enumerate(closed_issues):
+        plt.text(bar_positions_closed[i], value, str(value), ha='center', va='bottom')
+    for i, value in enumerate(open_issues):
+        plt.text(weeks[i], value, str(value), ha='center', va='bottom')
+
+    plt.title(f"GitHub Issues Activity for {username}")
+    plt.xlabel("Week Number")
+    plt.ylabel("Number of Issues")
+    plt.grid(True, linestyle="--", alpha=0.7)
+    plt.legend()
+
+    # Force x-axis to show all weeks
+    plt.xticks(weeks)
+    plt.xlim(min(weeks) - 0.5, max(weeks) + 0.5)
+
+    # Save the plot
+    plt.savefig(
+        os.path.join(save_path, f"{username}_activity.png"),
+        bbox_inches="tight",
+        dpi=300
+    )
+    print(f"Graph saved for user {username}")
+    plt.close()
+
+
+def get_user_weekly_scores(
+    issues_data: list,
+    username: str,
+    start_week: int,
+    end_week: int,
+    current_year: int
+) -> list:
+    """
+    Gets the priority scores of issues assigned to a user for each week.
+
+    Args:
+        issues_data (list): List of GitHub issues
+        username (str): GitHub username to analyze
+        start_week (int): Starting week number (1-52)
+        end_week (int): Ending week number (1-52)
+        current_year (int): Year for the analysis
+
+    Returns:
+        list: List of dictionaries containing week number and issue scores
+        Example: [
+            {'week': 1, 'open_score': 5, 'created_score': 2, 'closed_score': 1},
+            {'week': 2, 'open_score': 6, 'created_score': 3, 'closed_score': 2},
+            ...
+        ]
+    """
+    weekly_data = []
+
+    # Filter issues assigned to the user
+    user_issues = [
+        issue for issue in issues_data
+        if any(assignee.get('login') == username for assignee in issue.get('assignees', []))
+    ]
+
+    for week in range(start_week, end_week + 1):
+        week_start = get_week_start_date(current_year, week)
+        week_end = get_week_end_date(current_year, week)
+
+        # Get issues for each category
+        open_issues = get_open_issues_up_to_date(user_issues, week_end)
+        created_issues = get_issues_created_between_dates(user_issues, week_start, week_end)
+        closed_issues = get_issues_closed_between_dates(user_issues, week_start, week_end)
+
+        # Calculate scores for each category
+        open_categories = categorize_issues_by_priority(open_issues)
+        created_categories = categorize_issues_by_priority(created_issues)
+        closed_categories = categorize_issues_by_priority(closed_issues)
+
+        # Sum up total scores
+        open_score = sum(cat["total_score"] for cat in open_categories.values())
+        created_score = sum(cat["total_score"] for cat in created_categories.values())
+        closed_score = sum(cat["total_score"] for cat in closed_categories.values())
+
+        weekly_data.append({
+            'week': week,
+            'open_score': open_score,
+            'created_score': created_score,
+            'closed_score': closed_score
+        })
+
+    return weekly_data
+
+
+def create_user_scores_graph(
+    user_weekly_data: list,
+    username: str,
+    save_path: str,
+) -> None:
+    """
+    Creates and saves a graph showing weekly GitHub issues scores for a specific user.
+    Uses bars for created/closed scores and line for open scores.
+
+    Args:
+        user_weekly_data (list): List of dictionaries containing weekly score data for the user
+        username (str): GitHub username
+        save_path (str): Directory to save the graph
+    """
+    # Extract data for plotting
+    weeks = [data['week'] for data in user_weekly_data]
+    open_scores = [data['open_score'] for data in user_weekly_data]
+    created_scores = [data['created_score'] for data in user_weekly_data]
+    closed_scores = [data['closed_score'] for data in user_weekly_data]
+
+    # Create the visualization
+    plt.figure(figsize=(12, 6))
+
+    # Plot bars for created and closed scores
+    bar_width = 0.35
+    bar_positions_created = [x - bar_width/2 for x in weeks]
+    bar_positions_closed = [x + bar_width/2 for x in weeks]
+
+    plt.bar(
+        bar_positions_created,
+        created_scores,
+        bar_width,
+        label="Created Issues Score",
+        color="g",
+        alpha=0.6
+    )
+    plt.bar(
+        bar_positions_closed,
+        closed_scores,
+        bar_width,
+        label="Closed Issues Score",
+        color="r",
+        alpha=0.6
+    )
+
+    # Plot line for open scores
+    plt.plot(
+        weeks,
+        open_scores,
+        "b:",
+        label="Open Issues Score at week end",
+        marker="o",
+        linewidth=2
+    )
+
+    # Add value labels
+    for i, value in enumerate(created_scores):
+        plt.text(bar_positions_created[i], value, str(value), ha='center', va='bottom')
+    for i, value in enumerate(closed_scores):
+        plt.text(bar_positions_closed[i], value, str(value), ha='center', va='bottom')
+    for i, value in enumerate(open_scores):
+        plt.text(weeks[i], value, str(value), ha='center', va='bottom')
+
+    plt.title(f"GitHub Issues Priority Scores for {username}")
+    plt.xlabel("Week Number")
+    plt.ylabel("Priority Score")
+    plt.grid(True, linestyle="--", alpha=0.7)
+    plt.legend()
+
+    # Force x-axis to show all weeks
+    plt.xticks(weeks)
+    plt.xlim(min(weeks) - 0.5, max(weeks) + 0.5)
+
+    # Save the plot
+    plt.savefig(
+        os.path.join(save_path, f"{username}_scores.png"),
+        bbox_inches="tight",
+        dpi=300
+    )
+    print(f"Score graph saved for user {username}")
+    plt.close()
+
+
 # ----------------------------------------------------------------
 if __name__ == "__main__":
 
@@ -1273,22 +1375,53 @@ if __name__ == "__main__":
         print("\nCreating graphs for each user:")
         for user in unique_users:
             user_path = os.path.join(users_base_path, user)
-            create_user_issues_activity_graph(
+            
+            # Get weekly issues data for the user
+            user_weekly_data = get_user_weekly_issues(
                 issues_data=issues_data,
+                username=user,
                 start_week=start_week,
                 end_week=end_week,
-                current_year=current_year,
-                username=user,
-                save_path=user_path,  # Use user-specific path
+                current_year=current_year
             )
-            create_user_issues_score_graph(
+            
+            # Create graph for the user
+            create_user_issues_graph(
+                user_weekly_data=user_weekly_data,
+                username=user,
+                save_path=user_path
+            )
+            
+            # Get weekly scores data for the user
+            user_weekly_scores = get_user_weekly_scores(
                 issues_data=issues_data,
+                username=user,
                 start_week=start_week,
                 end_week=end_week,
-                current_year=current_year,
-                username=user,
-                save_path=user_path,  # Use user-specific path
+                current_year=current_year
             )
+            
+            # Create score graph for the user
+            create_user_scores_graph(
+                user_weekly_data=user_weekly_scores,
+                username=user,
+                save_path=user_path
+            )
+            
+            # Print user statistics if logging is enabled
+            if os.getenv("PRINT_LOGS_ANALYSIS_RESULTS", "false").lower() == "true":
+                print(f"\nWeekly statistics for {user}:")
+                headers = ["Week", "Open Issues", "Created", "Closed"]
+                table_data = [
+                    [
+                        week_data['week'],
+                        week_data['open_issues'],
+                        week_data['created_issues'],
+                        week_data['closed_issues']
+                    ]
+                    for week_data in user_weekly_data
+                ]
+                print(tabulate(table_data, headers=headers, tablefmt="grid"))
 
     # --------------------------------------------------------------
     # After creating all graphs, merge them into PDF
