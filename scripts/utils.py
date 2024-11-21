@@ -640,8 +640,11 @@ def create_pdf_report(
     start_week: int, end_week: int, save_path: str = "/workspace/tmp"
 ) -> None:
     """
-    Creates a single-page PDF report with all PNG files arranged vertically with margins.
-    Uses letter width (8.5 inches) and adjusts height based on content.
+    Creates a single-page PDF report with PNG files arranged vertically in this order:
+    1. Issues activity graph
+    2. Issues score graph
+    3. Issues severity graph
+    4. User distribution pie charts
 
     Args:
         start_week (int): Starting week number
@@ -662,31 +665,38 @@ def create_pdf_report(
         )
         pdf_path = os.path.join(save_path, pdf_filename)
 
-        # Get all PNG files in directory
-        png_files = [f for f in os.listdir(save_path) if f.endswith(".png")]
+        # Define the order of PNG files
+        ordered_png_files = [
+            'issues_activity.png',
+            'issues_score.png',
+            'issues_priority_levels.png',
+            f'user_distribution_week_{end_week}.png'
+        ]
+
+        # Filter existing PNG files while maintaining order
+        png_files = [f for f in ordered_png_files if os.path.exists(os.path.join(save_path, f))]
+        
         if not png_files:
             print("No PNG files found to merge")
             return
 
-        # Letter width and margins in pixels at 300 DPI
+        # Rest of the function remains the same...
         DPI = 300
-        LETTER_WIDTH = int(8.5 * DPI)  # 8.5 inches * 300 DPI
-        MARGIN = int(0.5 * DPI)  # 0.5 inch margin
-        SPACING = int(0.25 * DPI)  # 0.25 inch spacing between images
+        LETTER_WIDTH = int(8.5 * DPI)
+        MARGIN = int(0.5 * DPI)
+        SPACING = int(0.25 * DPI)
         CONTENT_WIDTH = LETTER_WIDTH - (2 * MARGIN)
 
         # Process images and calculate total height needed
         processed_images = []
-        total_height = MARGIN  # Start with top margin
+        total_height = MARGIN
 
         for png_file in png_files:
-            # Open and process the PNG
             image_path = os.path.join(save_path, png_file)
             img = Image.open(image_path)
             if img.mode == "RGBA":
                 img = img.convert("RGB")
 
-            # Scale image to fit content width while maintaining aspect ratio
             scale = CONTENT_WIDTH / img.width
             new_width = CONTENT_WIDTH
             new_height = int(img.height * scale)
@@ -695,7 +705,7 @@ def create_pdf_report(
             processed_images.append(img)
             total_height += new_height + SPACING
 
-        total_height += MARGIN - SPACING  # Add bottom margin and remove last spacing
+        total_height += MARGIN - SPACING
 
         # Create the final image
         final_image = Image.new("RGB", (LETTER_WIDTH, total_height), "white")
@@ -831,16 +841,15 @@ def create_users_pdf_report(
     start_week: int, end_week: int, save_path: str = "/workspace/tmp"
 ) -> None:
     """
-    Creates a single PDF report containing all user-specific PNG files from user subdirectories.
-    Uses letter width (8.5 inches) and adjusts height based on content.
-
+    Creates a single PDF report with title page, index, and one page per user containing all their graphs.
+    
     Args:
         start_week (int): Starting week number
         end_week (int): Ending week number
         save_path (str, optional): Base directory containing user folders. Defaults to "/workspace/tmp"
     """
     try:
-        from PIL import Image
+        from PIL import Image, ImageDraw, ImageFont
         from datetime import datetime
         import glob
 
@@ -850,9 +859,10 @@ def create_users_pdf_report(
 
         # Constants for PDF layout
         DPI = 300
-        LETTER_WIDTH = int(8.5 * DPI)  # 8.5 inches * 300 DPI
-        MARGIN = int(0.5 * DPI)  # 0.5 inch margin
-        SPACING = int(0.25 * DPI)  # 0.25 inch spacing between images
+        LETTER_WIDTH = int(8.5 * DPI)
+        LETTER_HEIGHT = int(11 * DPI)
+        MARGIN = int(0.5 * DPI)
+        SPACING = int(0.25 * DPI)
         CONTENT_WIDTH = LETTER_WIDTH - (2 * MARGIN)
 
         # Process user directories
@@ -862,52 +872,134 @@ def create_users_pdf_report(
             return
 
         # Collect all user PNGs
-        all_user_pngs = []
-        for user_dir in sorted(os.listdir(users_dir)):  # Sort to ensure consistent order
+        users_data = []
+        for user_dir in sorted(os.listdir(users_dir)):
             user_path = os.path.join(users_dir, user_dir)
             if os.path.isdir(user_path):
                 user_pngs = sorted(glob.glob(os.path.join(user_path, "*.png")))
-                all_user_pngs.extend(user_pngs)
+                if user_pngs:
+                    users_data.append({
+                        'username': user_dir,
+                        'images': user_pngs
+                    })
 
-        if not all_user_pngs:
+        if not users_data:
             print("No user PNG files found")
             return
 
-        # Process images and calculate total height needed
-        processed_images = []
-        total_height = MARGIN  # Start with top margin
+        # Create pages list to store all pages
+        pages = []
 
-        for image_path in all_user_pngs:
-            # Open and process the PNG
-            img = Image.open(image_path)
-            if img.mode == "RGBA":
-                img = img.convert("RGB")
+        # Create title page
+        title_page = Image.new("RGB", (LETTER_WIDTH, LETTER_HEIGHT), "white")
+        draw = ImageDraw.Draw(title_page)
+        
+        # Try to load a font, fall back to default if not available
+        try:
+            title_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 60)
+            regular_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 40)
+        except:
+            title_font = ImageFont.load_default()
+            regular_font = ImageFont.load_default()
 
-            # Scale image to fit content width while maintaining aspect ratio
-            scale = CONTENT_WIDTH / img.width
-            new_width = CONTENT_WIDTH
-            new_height = int(img.height * scale)
-            img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+        # Add title page content
+        title = "GitHub Issues Report"
+        subtitle = f"Weeks {start_week} to {end_week}"
+        date_range = f"({start_date} - {end_date})"
+        
+        # Calculate text positions for centering
+        title_bbox = draw.textbbox((0, 0), title, font=title_font)
+        subtitle_bbox = draw.textbbox((0, 0), subtitle, font=regular_font)
+        date_bbox = draw.textbbox((0, 0), date_range, font=regular_font)
+        
+        title_width = title_bbox[2] - title_bbox[0]
+        subtitle_width = subtitle_bbox[2] - subtitle_bbox[0]
+        date_width = date_bbox[2] - date_bbox[0]
+        
+        draw.text(((LETTER_WIDTH - title_width) // 2, LETTER_HEIGHT // 3), title, font=title_font, fill="black")
+        draw.text(((LETTER_WIDTH - subtitle_width) // 2, LETTER_HEIGHT // 2), subtitle, font=regular_font, fill="black")
+        draw.text(((LETTER_WIDTH - date_width) // 2, LETTER_HEIGHT // 2 + 100), date_range, font=regular_font, fill="black")
+        
+        pages.append(title_page)
 
-            processed_images.append(img)
-            total_height += new_height + SPACING
+        # Create index page
+        index_page = Image.new("RGB", (LETTER_WIDTH, LETTER_HEIGHT), "white")
+        draw = ImageDraw.Draw(index_page)
+        
+        # Add index title
+        index_title = "Index"
+        index_bbox = draw.textbbox((0, 0), index_title, font=title_font)
+        index_width = index_bbox[2] - index_bbox[0]
+        draw.text(((LETTER_WIDTH - index_width) // 2, MARGIN), index_title, font=title_font, fill="black")
+        
+        # Add user list
+        y_position = MARGIN + 150
+        for i, user_data in enumerate(users_data, 1):
+            entry = f"{i}. {user_data['username']}"
+            draw.text((MARGIN, y_position), entry, font=regular_font, fill="black")
+            y_position += 50
 
-        total_height += MARGIN - SPACING  # Add bottom margin and remove last spacing
+        pages.append(index_page)
 
-        # Create the final image
-        final_image = Image.new("RGB", (LETTER_WIDTH, total_height), "white")
-        y_position = MARGIN
+        # Process each user's images
+        for user_data in users_data:
+            # Create new page for user
+            user_page = Image.new("RGB", (LETTER_WIDTH, LETTER_HEIGHT), "white")
+            draw = ImageDraw.Draw(user_page)
+            
+            # Add user title at the top
+            user_title = f"User: {user_data['username']}"
+            title_bbox = draw.textbbox((0, 0), user_title, font=title_font)
+            title_width = title_bbox[2] - title_bbox[0]
+            draw.text(((LETTER_WIDTH - title_width) // 2, MARGIN), user_title, font=title_font, fill="black")
+            
+            # Calculate layout for two graphs
+            graph_height = (LETTER_HEIGHT - (3 * MARGIN)) // 2  # Divide remaining space by 2
+            
+            # Process and paste both graphs
+            for i, image_path in enumerate(user_data['images']):
+                img = Image.open(image_path)
+                if img.mode == "RGBA":
+                    img = img.convert("RGB")
 
-        # Paste all images
-        for img in processed_images:
-            x_position = MARGIN
-            final_image.paste(img, (x_position, y_position))
-            y_position += img.height + SPACING
+                # Scale image to fit width while maintaining aspect ratio
+                scale = CONTENT_WIDTH / img.width
+                new_width = CONTENT_WIDTH
+                new_height = int(img.height * scale)
+                
+                # Further scale if height is too large
+                if new_height > graph_height:
+                    scale = graph_height / new_height
+                    new_width = int(new_width * scale)
+                    new_height = graph_height
+
+                img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+
+                # Calculate y position for each graph
+                y_position = MARGIN + title_bbox[3] + SPACING  # Start after title
+                if i == 1:  # Second graph
+                    y_position += graph_height + SPACING
+
+                # Center horizontally
+                x_position = (LETTER_WIDTH - new_width) // 2
+                
+                # Paste image
+                user_page.paste(img, (x_position, y_position))
+
+            pages.append(user_page)
 
         # Create output filename and save PDF
         pdf_filename = f"user_reports_W{start_week}-{start_date}_to_W{end_week}-{end_date}.pdf"
         pdf_path = os.path.join(save_path, pdf_filename)
-        final_image.save(pdf_path, resolution=DPI)
+        
+        # Save all pages to PDF
+        pages[0].save(
+            pdf_path,
+            "PDF",
+            resolution=DPI,
+            save_all=True,
+            append_images=pages[1:]
+        )
         print(f"Users PDF report saved as '{pdf_filename}'")
 
     except ImportError:
