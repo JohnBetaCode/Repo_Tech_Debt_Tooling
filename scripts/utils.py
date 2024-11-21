@@ -953,10 +953,10 @@ def create_users_pdf_report(
             title_width = title_bbox[2] - title_bbox[0]
             draw.text(((LETTER_WIDTH - title_width) // 2, MARGIN), user_title, font=title_font, fill="black")
             
-            # Calculate layout for two graphs
-            graph_height = (LETTER_HEIGHT - (3 * MARGIN)) // 2  # Divide remaining space by 2
+            # Calculate layout for three graphs
+            graph_height = (LETTER_HEIGHT - (4 * MARGIN)) // 3  # Divide remaining space by 3
             
-            # Process and paste both graphs
+            # Process and paste all three graphs
             for i, image_path in enumerate(user_data['images']):
                 img = Image.open(image_path)
                 if img.mode == "RGBA":
@@ -979,6 +979,8 @@ def create_users_pdf_report(
                 y_position = MARGIN + title_bbox[3] + SPACING  # Start after title
                 if i == 1:  # Second graph
                     y_position += graph_height + SPACING
+                elif i == 2:  # Third graph
+                    y_position += (graph_height + SPACING) * 2
 
                 # Center horizontally
                 x_position = (LETTER_WIDTH - new_width) // 2
@@ -1400,6 +1402,116 @@ def create_user_distribution_charts(
     plt.close()
 
 
+def create_user_priority_levels_graph(
+    issues_data: list,
+    username: str,
+    start_week: int,
+    end_week: int,
+    current_year: int,
+    save_path: str,
+) -> None:
+    """
+    Creates and saves a graph showing weekly GitHub issues by priority level for a specific user.
+    Shows stacked bars for each priority level with dual x-axes for weeks and months.
+
+    Args:
+        issues_data (list): List of GitHub issues
+        username (str): GitHub username
+        start_week (int): Starting week number (1-52)
+        end_week (int): Ending week number (1-52)
+        current_year (int): Year for the analysis
+        save_path (str): Directory to save the graph
+    """
+    weeks = list(range(start_week, end_week + 1))
+    priority_data = {
+        "PRIORITY_LOW": [],
+        "PRIORITY_MEDIUM": [],
+        "PRIORITY_HIGH": [],
+        "PRIORITY_SATANIC": [],
+        "UNCATEGORIZED": []
+    }
+
+    # Filter issues for this user
+    user_issues = [
+        issue for issue in issues_data
+        if any(assignee.get('login') == username for assignee in issue.get('assignees', []))
+    ]
+
+    # Collect data for each week
+    for week in weeks:
+        week_end = get_week_end_date(current_year, week)
+        open_issues = get_open_issues_up_to_date(user_issues, week_end)
+        categories = categorize_issues_by_priority(open_issues)
+        
+        for priority in priority_data.keys():
+            priority_data[priority].append(categories[priority]["issue_count"])
+
+    # Create the visualization with dual x-axes
+    fig, ax1 = plt.subplots(figsize=(15, 8))
+    
+    # Create second x-axis for months
+    ax2 = ax1.twiny()
+
+    # Create stacked bar chart on primary axis
+    bottom = np.zeros(len(weeks))
+    colors = {
+        "PRIORITY_LOW": "#7FBA00",      # Green
+        "PRIORITY_MEDIUM": "#FFA500",    # Orange
+        "PRIORITY_HIGH": "#F35325",      # Red
+        "PRIORITY_SATANIC": "#8B0000",   # Dark Red
+        "UNCATEGORIZED": "#A9A9A9"       # Gray
+    }
+
+    for priority, counts in priority_data.items():
+        ax1.bar(weeks, counts, bottom=bottom, label=priority, color=colors[priority], alpha=0.7)
+        bottom += np.array(counts)
+
+        # Add value labels if count > 0
+        for i, count in enumerate(counts):
+            if count > 0:
+                # Position the text in the middle of its segment
+                height = bottom[i] - (count / 2)
+                ax1.text(weeks[i], height, str(count), ha='center', va='center')
+
+    # Set up the primary x-axis (weeks)
+    ax1.set_xlim(min(weeks) - 0.5, max(weeks) + 0.5)
+    ax1.set_xticks(weeks)
+    ax1.set_xlabel("Week Number")
+    
+    # Set up the secondary x-axis (months)
+    month_positions = []
+    month_labels = []
+    
+    # Get unique months and their positions
+    for week in weeks:
+        week_start = get_week_start_date(current_year, week)
+        month_name = week_start.strftime("%B")
+        month_pos = week
+        
+        # Only add month if it's not already in labels or if it's the first week
+        if not month_labels or month_labels[-1] != month_name:
+            month_positions.append(month_pos)
+            month_labels.append(month_name)
+    
+    ax2.set_xlim(ax1.get_xlim())
+    ax2.set_xticks(month_positions)
+    ax2.set_xticklabels(month_labels)
+    
+    plt.title(f"GitHub Issues by Priority Level for {username}")
+    ax1.set_ylabel("Number of Issues")
+    ax1.grid(True, linestyle="--", alpha=0.7)
+    ax1.legend(loc='upper left')
+
+    # Save the plot
+    plt.savefig(
+        os.path.join(save_path, f"{username}_priority_levels.png"),
+        bbox_inches="tight",
+        dpi=300
+    )
+    print(f"Priority levels graph saved for user {username}")
+    plt.close()
+
+
 # ----------------------------------------------------------------
 if __name__ == "__main__":
 
@@ -1617,6 +1729,16 @@ if __name__ == "__main__":
             create_user_scores_graph(
                 user_weekly_data=user_weekly_scores,
                 username=user,
+                save_path=user_path
+            )
+            
+            # Add the new priority levels graph
+            create_user_priority_levels_graph(
+                issues_data=issues_data,
+                username=user,
+                start_week=start_week,
+                end_week=end_week,
+                current_year=current_year,
                 save_path=user_path
             )
             
