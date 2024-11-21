@@ -1202,6 +1202,112 @@ def create_user_scores_graph(
     plt.close()
 
 
+def create_user_distribution_charts(
+    users_statistics: list,
+    end_week: int,
+    save_path: str = "/workspace/tmp"
+) -> None:
+    """
+    Creates two side-by-side pie charts showing the distribution of issues and scores among users
+    for the last analyzed week.
+
+    Args:
+        users_statistics (list): List of dictionaries containing user statistics
+        end_week (int): The last week number being analyzed
+        save_path (str): Directory to save the graph
+    """
+    # Skip if no data
+    if not users_statistics:
+        print("No user statistics available for creating distribution charts")
+        return
+
+    # Create figure with two subplots side by side
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 8))
+
+    # Extract data for plotting
+    usernames = [stat['username'] for stat in users_statistics]
+    open_issues = [stat['open_issues'] for stat in users_statistics]
+    total_scores = [stat['total_score'] for stat in users_statistics]
+
+    # Calculate total values for percentage calculation
+    total_issues = sum(open_issues)
+    total_score = sum(total_scores)
+
+    # Create labels with both count and percentage for issues
+    issue_labels = [
+        f'{user}\n({issues} issues)\n({issues/total_issues*100:.1f}%)'
+        if issues > 0 else ''
+        for user, issues in zip(usernames, open_issues)
+    ]
+
+    # Create labels with both score and percentage for scores
+    score_labels = [
+        f'{user}\n({score} points)\n({score/total_score*100:.1f}%)'
+        if score > 0 else ''
+        for user, score in zip(usernames, total_scores)
+    ]
+
+    # Remove empty labels and corresponding data
+    issues_data = [(i, l) for i, l in zip(open_issues, issue_labels) if i > 0]
+    scores_data = [(s, l) for s, l in zip(total_scores, score_labels) if s > 0]
+    
+    if issues_data:
+        values_issues, labels_issues = zip(*issues_data)
+    else:
+        values_issues, labels_issues = [], []
+    
+    if scores_data:
+        values_scores, labels_scores = zip(*scores_data)
+    else:
+        values_scores, labels_scores = [], []
+
+    # Plot issues distribution
+    if values_issues:
+        wedges1, texts1, autotexts1 = ax1.pie(
+            values_issues,
+            labels=labels_issues,
+            autopct='',  # We already include percentages in labels
+            startangle=90
+        )
+    ax1.set_title(f'Issues Distribution - Week {end_week}\nTotal Issues: {total_issues}')
+
+    # Plot scores distribution
+    if values_scores:
+        wedges2, texts2, autotexts2 = ax2.pie(
+            values_scores,
+            labels=labels_scores,
+            autopct='',  # We already include percentages in labels
+            startangle=90
+        )
+    ax2.set_title(f'Score Distribution - Week {end_week}\nTotal Score: {total_score}')
+
+    # Add warning text at the bottom of the figure
+    warning_text = (
+        "Note: Issues and scores may be shared among multiple users.\n"
+        "The total sum might exceed the individual issue counts due to shared assignments."
+    )
+    plt.figtext(
+        0.5, 0.02,  # x, y position
+        warning_text,
+        ha='center',
+        color='red',
+        style='italic',
+        bbox=dict(facecolor='white', alpha=0.8, edgecolor='none')
+    )
+
+    # Adjust subplot parameters to make room for the warning text
+    plt.subplots_adjust(bottom=0.15)
+
+    # Save the plot
+    plt.savefig(
+        os.path.join(save_path, f'user_distribution_week_{end_week}.png'),
+        bbox_inches='tight',
+        dpi=300
+    )
+    print(f"User distribution charts saved for week {end_week}")
+    plt.close()
+
+
 # ----------------------------------------------------------------
 if __name__ == "__main__":
 
@@ -1372,6 +1478,9 @@ if __name__ == "__main__":
             user_path = os.path.join(users_base_path, user)
             os.makedirs(user_path, exist_ok=True)
 
+        # Collect statistics for all users
+        users_statistics = []
+        
         print("\nCreating graphs for each user:")
         for user in unique_users:
             user_path = os.path.join(users_base_path, user)
@@ -1385,13 +1494,6 @@ if __name__ == "__main__":
                 current_year=current_year
             )
             
-            # Create graph for the user
-            create_user_issues_graph(
-                user_weekly_data=user_weekly_data,
-                username=user,
-                save_path=user_path
-            )
-            
             # Get weekly scores data for the user
             user_weekly_scores = get_user_weekly_scores(
                 issues_data=issues_data,
@@ -1399,6 +1501,24 @@ if __name__ == "__main__":
                 start_week=start_week,
                 end_week=end_week,
                 current_year=current_year
+            )
+            
+            # Collect total statistics for this user
+            total_created = sum(week['created_issues'] for week in user_weekly_data)
+            total_closed = sum(week['closed_issues'] for week in user_weekly_data)
+            total_score = sum(week['open_score'] for week in user_weekly_scores)
+            
+            users_statistics.append({
+                'username': user,
+                'open_issues': user_weekly_data[-1]['open_issues'],  # Get only last week's open issues
+                'total_score': user_weekly_scores[-1]['open_score']  # Get only last week's score
+            })
+            
+            # Create graph for the user
+            create_user_issues_graph(
+                user_weekly_data=user_weekly_data,
+                username=user,
+                save_path=user_path
             )
             
             # Create score graph for the user
@@ -1424,13 +1544,20 @@ if __name__ == "__main__":
                 print(tabulate(table_data, headers=headers, tablefmt="grid"))
 
     # --------------------------------------------------------------
+    # Create user distribution charts
+    create_user_distribution_charts(
+        users_statistics=users_statistics,
+        end_week=end_week,
+        save_path="/workspace/tmp"
+    )
+
+    # --------------------------------------------------------------
     # After creating all graphs, merge them into PDF
     create_pdf_report(start_week, end_week)
 
     # --------------------------------------------------------------
     # Create users PDF report
     create_users_pdf_report(start_week, end_week)
-
 
 
     exit()
