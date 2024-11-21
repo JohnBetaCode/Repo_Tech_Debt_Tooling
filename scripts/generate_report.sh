@@ -39,19 +39,26 @@ if [[ -n "${DELETE_PREVIOUS_REPORT}" ]] && [[ "${DELETE_PREVIOUS_REPORT}" == "tr
     rm -rf tmp/*.pdf
 fi
 
-# Update help function to include new -d flag
+# Add menu function
+show_menu() {
+    echo "Please select an option:"
+    echo "1. Generate PDF reports (User reports and total report)"
+    echo "2. Generate PR and Issues report"
+    echo "3. Exit"
+    read -p "Enter your choice (1-3): " choice
+}
+
+# Update help function
 show_help() {
-    echo "Usage: $0 [options] [start_week] [end_week]"
+    echo "Usage: $0 [options]"
     echo
     echo "Options:"
     echo "  -h, --help    Show this help message"
     echo "  -d            Delete temporary files after execution"
     echo
-    echo "Arguments:"
-    echo "  start_week    Week number (1-52), default: 1"
-    echo "  end_week      Week number (1-52), default: current week"
+    echo "The script will prompt for additional options based on your selection."
     echo
-    echo "Example: $0 -d 1 52"
+    echo "Example: $0 -d"
     exit 1
 }
 
@@ -67,13 +74,35 @@ if [[ "$1" == "-h" ]] || [[ "$1" == "--help" ]]; then
     show_help
 fi
 
-# You can either pass arguments directly to the script
-# or use default values
-START_WEEK=${1:-1}           # Default to first week of year (1) if no argument provided
-END_WEEK=${2:-$(date +%V)}   # Default to current week if no argument provided
-
-# Execute the Python script with the week parameters
-python3 scripts/utils.py --start-week "$START_WEEK" --end-week "$END_WEEK"
+# Show menu and handle user input
+show_menu
+case $choice in
+    1)
+        echo "Generating PDF reports..."
+        read -p "Enter start week (1-52): " START_WEEK
+        read -p "Enter end week (1-52, or press enter for current week): " END_WEEK
+        # If END_WEEK is empty or not specified, use current week number (1-52)
+        END_WEEK=${END_WEEK:-$(date +%V)}
+        python3 scripts/utils.py --report-type pdf --start-week "$START_WEEK" --end-week "$END_WEEK"
+        ;;
+    2)
+        echo "Generating PR and Issues report..."
+        read -p "Enter start date (YYYY-MM-DD) or press enter for today: " start_date
+        read -p "Enter end date (YYYY-MM-DD) or press enter for today: " end_date
+        # Set default dates to today if not specified
+        start_date=${start_date:-$(date +%Y-%m-%d)}
+        end_date=${end_date:-$(date +%Y-%m-%d)}
+        python3 scripts/utils.py --report-type pr-issues --start-date "$start_date" --end-date "$end_date"
+        ;;
+    3)
+        echo "Exiting..."
+        exit 0
+        ;;
+    *)
+        echo "Invalid option. Please select 1, 2, or 3."
+        exit 1
+        ;;
+esac
 
 # Check if GENERATE_REPORT_CLEANUP is defined and true
 if [[ -n "${GENERATE_REPORT_CLEANUP}" ]] && [[ "${GENERATE_REPORT_CLEANUP}" == "true" ]]; then

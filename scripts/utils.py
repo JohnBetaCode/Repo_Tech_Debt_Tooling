@@ -1520,43 +1520,14 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Process GitHub issues based on week numbers"
     )
+    # Set up argument parser
+    parser = argparse.ArgumentParser(description="Process GitHub issues and generate reports")
+    parser.add_argument("--report-type", choices=['pdf', 'pr-issues'], help="Type of report to generate")
     parser.add_argument("--start-week", type=int, help="Starting week number (1-52)")
     parser.add_argument("--end-week", type=int, help="Ending week number (1-52)")
+    parser.add_argument("--start-date", help="Start date for PR-Issues report (YYYY-MM-DD)")
+    parser.add_argument("--end-date", help="End date for PR-Issues report (YYYY-MM-DD)")
     args = parser.parse_args()
-
-    # Get current year and week
-    today = date.today()
-    current_year = today.year
-    current_week = today.isocalendar()[1]
-
-    # Set default values if arguments are not provided
-    start_week = args.start_week if args.start_week is not None else 1
-    end_week = args.end_week if args.end_week is not None else current_week
-
-    # Validate week numbers
-    if not (1 <= start_week <= 52 and 1 <= end_week <= 52):
-        print("Week numbers must be between 1 and 52")
-        exit(1)
-    if start_week > end_week:
-        print("Start week must be less than or equal to end week")
-        exit(1)
-
-    start_date = get_week_start_date(current_year, start_week)
-    end_date = get_week_end_date(current_year, end_week)
-
-    print(
-        f"Analyzing issues from Week {start_week} ({start_date}) to Week {end_week} ({end_date})"
-    )
-
-    # --------------------------------------------------------------
-    # Check if the file exists and is not empty
-    secrets_file = "configs/secrets.sh"
-    if os.path.isfile(secrets_file) and os.path.getsize(secrets_file) > 0:
-        # print("The secrets file exists and is not empty.")
-        pass
-    else:
-        print("The secrets file is empty or does not exist.")
-        exit()
 
     # --------------------------------------------------------------
     # Load the URL and headers from environment variables
@@ -1576,6 +1547,9 @@ if __name__ == "__main__":
             accept=GITHUB_ACCEPT,
             token=GITHUB_TOKEN,
         )
+    if not len(data):
+        print("Warning: No data available. Please ensure the data file exists or the API is accessible.")
+        exit(1)
 
     # --------------------------------------------------------------
     # Filter only issues
@@ -1585,193 +1559,240 @@ if __name__ == "__main__":
     prs_data = [issue for issue in data if not "pull_request" not in issue]
 
     # --------------------------------------------------------------
-    # Iterate over the weeks for issues analysis
-    # Initialize table data
-    table_data = []
-    headers = ["Week", "Open Issues", "Created Issues", "Closed Issues", "Score"]
-    
-    for week in range(start_week, end_week + 1):
-        # ----------------------------------------------------------
-        # Get issues opened up to date
-        open_issues_up_to_date = get_open_issues_up_to_date(
-            issues=issues_data, target_date=get_week_end_date(current_year, week)
-        )
+    if args.report_type == 'pdf':
 
-        # Get issues created and closed during this week
-        week_start = get_week_start_date(current_year, week)
-        week_end = get_week_end_date(current_year, week)
-        issues_created_this_week = get_issues_created_between_dates(
-            issues=issues_data, start_date=week_start, end_date=week_end
-        )
-        issues_closed_this_week = get_issues_closed_between_dates(
-            issues=issues_data, start_date=week_start, end_date=week_end
-        )
-
-        categories = categorize_issues_by_priority(issues_closed_this_week)
-        total_score = sum(cat["total_score"] for cat in categories.values())
+        # --------------------------------------------------------------
+        # Validate week numbers
         
-        # Add row to table data
-        table_data.append([
-            week,
-            len(open_issues_up_to_date),
-            len(issues_created_this_week),
-            len(issues_closed_this_week),
-            total_score
-        ])
+        # Get current year and week
+        today = date.today()
+        current_year = today.year
+        current_week = today.isocalendar()[1]
 
-    # Print table only if PRINT_LOGS_ANALYSIS_RESULTS is true
-    if os.getenv("PRINT_LOGS_ANALYSIS_RESULTS", "false").lower() == "true":
-        print("\nWeekly Issues Summary:")
-        print(tabulate(table_data, headers=headers, tablefmt="grid"))
+        # Set default values if arguments are not provided
+        start_week = args.start_week if args.start_week is not None else 1
+        end_week = args.end_week if args.end_week is not None else current_week
 
-    # --------------------------------------------------------------
-    # Create activity graph only if PERFORM_SCORE_ANALYSIS is true
-    if os.getenv("PERFORM_QUANTITATIVE_ANALYSIS", "false").lower() == "true":
-        create_issues_activity_graph(
-            issues_data=issues_data,
-            start_week=start_week,
-            end_week=end_week,
-            current_year=current_year,
+
+        if not (1 <= start_week <= 52 and 1 <= end_week <= 52):
+            print("Week numbers must be between 1 and 52")
+            exit(1)
+        if start_week > end_week:
+            print("Start week must be less than or equal to end week")
+            exit(1)
+
+        start_date = get_week_start_date(current_year, start_week)
+        end_date = get_week_end_date(current_year, end_week)
+
+        print(
+            f"Analyzing issues from Week {start_week} ({start_date}) to Week {end_week} ({end_date})"
         )
 
-    # --------------------------------------------------------------
-    # Create score graph only if PERFORM_SCORE_ANALYSIS is true
-    if os.getenv("PERFORM_SCORE_ANALYSIS", "false").lower() == "true":
-        create_issues_score_graph(
-            issues_data=issues_data,
-            start_week=start_week,
-            end_week=end_week,
-            current_year=current_year,
-        )
+        # --------------------------------------------------------------
+        # Check if the file exists and is not empty
+        secrets_file = "configs/secrets.sh"
+        if os.path.isfile(secrets_file) and os.path.getsize(secrets_file) > 0:
+            # print("The secrets file exists and is not empty.")
+            pass
+        else:
+            print("The secrets file is empty or does not exist.")
+            exit()
 
-    # --------------------------------------------------------------
-    # Create priority levels graph only if PERFORM_PRIORITY_ANALYSIS is true
-    if os.getenv("PERFORM_PRIORITY_ANALYSIS", "false").lower() == "true":
-        create_issues_score_levels_graph(
-            issues_data=issues_data,
-            start_week=start_week,
-            end_week=end_week,
-            current_year=current_year,
-        )
-
-    # --------------------------------------------------------------
-    # Perform user analysis only if PERFORM_USER_ANALYSIS is true
-    if os.getenv("PERFORM_USER_ANALYSIS", "true").lower() == "true":
-        # Load excluded users from YAML file
-        excluded_users = []
-        try:
-            import yaml
-            with open('configs/exclude_users.yaml', 'r') as file:
-                config = yaml.safe_load(file)
-                excluded_users = config.get('excluded_users', [])
-        except Exception as e:
-            print(f"Warning: Could not load excluded users: {str(e)}")
-
-        # Create users directory in tmp
-        users_base_path = os.path.join("/workspace/tmp", "users")
-        os.makedirs(users_base_path, exist_ok=True)
-
-        # Iterate over the weeks for user analysis
-        unique_users = [user for user in get_unique_users_from_issues(issues_data) 
-                       if user not in excluded_users]
+        # --------------------------------------------------------------
+        # Iterate over the weeks for issues analysis
+        # Initialize table data
+        table_data = []
+        headers = ["Week", "Open Issues", "Created Issues", "Closed Issues", "Score"]
         
-        print("\nUnique active users involved in issues:")
-        for user in unique_users:
-            print(f"- {user}")
-            # Create user-specific directory
-            user_path = os.path.join(users_base_path, user)
-            os.makedirs(user_path, exist_ok=True)
+        for week in range(start_week, end_week + 1):
+            # ----------------------------------------------------------
+            # Get issues opened up to date
+            open_issues_up_to_date = get_open_issues_up_to_date(
+                issues=issues_data, target_date=get_week_end_date(current_year, week)
+            )
 
-        # Collect statistics for all users
-        users_statistics = []
-        
-        print("\nCreating graphs for each user:")
-        for user in unique_users:
-            user_path = os.path.join(users_base_path, user)
+            # Get issues created and closed during this week
+            week_start = get_week_start_date(current_year, week)
+            week_end = get_week_end_date(current_year, week)
+            issues_created_this_week = get_issues_created_between_dates(
+                issues=issues_data, start_date=week_start, end_date=week_end
+            )
+            issues_closed_this_week = get_issues_closed_between_dates(
+                issues=issues_data, start_date=week_start, end_date=week_end
+            )
+
+            categories = categorize_issues_by_priority(issues_closed_this_week)
+            total_score = sum(cat["total_score"] for cat in categories.values())
             
-            # Get weekly issues data for the user
-            user_weekly_data = get_user_weekly_issues(
+            # Add row to table data
+            table_data.append([
+                week,
+                len(open_issues_up_to_date),
+                len(issues_created_this_week),
+                len(issues_closed_this_week),
+                total_score
+            ])
+
+        # Print table only if PRINT_LOGS_ANALYSIS_RESULTS is true
+        if os.getenv("PRINT_LOGS_ANALYSIS_RESULTS", "false").lower() == "true":
+            print("\nWeekly Issues Summary:")
+            print(tabulate(table_data, headers=headers, tablefmt="grid"))
+
+        # --------------------------------------------------------------
+        # Create activity graph only if PERFORM_SCORE_ANALYSIS is true
+        if os.getenv("PERFORM_QUANTITATIVE_ANALYSIS", "false").lower() == "true":
+            create_issues_activity_graph(
                 issues_data=issues_data,
-                username=user,
-                start_week=start_week,
-                end_week=end_week,
-                current_year=current_year
-            )
-            
-            # Get weekly scores data for the user
-            user_weekly_scores = get_user_weekly_scores(
-                issues_data=issues_data,
-                username=user,
-                start_week=start_week,
-                end_week=end_week,
-                current_year=current_year
-            )
-            
-            # Collect total statistics for this user
-            total_created = sum(week['created_issues'] for week in user_weekly_data)
-            total_closed = sum(week['closed_issues'] for week in user_weekly_data)
-            total_score = sum(week['open_score'] for week in user_weekly_scores)
-            
-            users_statistics.append({
-                'username': user,
-                'open_issues': user_weekly_data[-1]['open_issues'],  # Get only last week's open issues
-                'total_score': user_weekly_scores[-1]['open_score']  # Get only last week's score
-            })
-            
-            # Create graph for the user
-            create_user_issues_graph(
-                user_weekly_data=user_weekly_data,
-                username=user,
-                save_path=user_path
-            )
-            
-            # Create score graph for the user
-            create_user_scores_graph(
-                user_weekly_data=user_weekly_scores,
-                username=user,
-                save_path=user_path
-            )
-            
-            # Add the new priority levels graph
-            create_user_priority_levels_graph(
-                issues_data=issues_data,
-                username=user,
                 start_week=start_week,
                 end_week=end_week,
                 current_year=current_year,
-                save_path=user_path
             )
+
+        # --------------------------------------------------------------
+        # Create score graph only if PERFORM_SCORE_ANALYSIS is true
+        if os.getenv("PERFORM_SCORE_ANALYSIS", "false").lower() == "true":
+            create_issues_score_graph(
+                issues_data=issues_data,
+                start_week=start_week,
+                end_week=end_week,
+                current_year=current_year,
+            )
+
+        # --------------------------------------------------------------
+        # Create priority levels graph only if PERFORM_PRIORITY_ANALYSIS is true
+        if os.getenv("PERFORM_PRIORITY_ANALYSIS", "false").lower() == "true":
+            create_issues_score_levels_graph(
+                issues_data=issues_data,
+                start_week=start_week,
+                end_week=end_week,
+                current_year=current_year,
+            )
+
+        # --------------------------------------------------------------
+        # Perform user analysis only if PERFORM_USER_ANALYSIS is true
+        if os.getenv("PERFORM_USER_ANALYSIS", "true").lower() == "true":
+            # Load excluded users from YAML file
+            excluded_users = []
+            try:
+                import yaml
+                with open('configs/exclude_users.yaml', 'r') as file:
+                    config = yaml.safe_load(file)
+                    excluded_users = config.get('excluded_users', [])
+            except Exception as e:
+                print(f"Warning: Could not load excluded users: {str(e)}")
+
+            # Create users directory in tmp
+            users_base_path = os.path.join("/workspace/tmp", "users")
+            os.makedirs(users_base_path, exist_ok=True)
+
+            # Iterate over the weeks for user analysis
+            unique_users = [user for user in get_unique_users_from_issues(issues_data) 
+                        if user not in excluded_users]
             
-            # Print user statistics if logging is enabled
-            if os.getenv("PRINT_LOGS_ANALYSIS_RESULTS", "false").lower() == "true":
-                print(f"\nWeekly statistics for {user}:")
-                headers = ["Week", "Open Issues", "Created", "Closed"]
-                table_data = [
-                    [
-                        week_data['week'],
-                        week_data['open_issues'],
-                        week_data['created_issues'],
-                        week_data['closed_issues']
+            print("\nUnique active users involved in issues:")
+            for user in unique_users:
+                print(f"- {user}")
+                # Create user-specific directory
+                user_path = os.path.join(users_base_path, user)
+                os.makedirs(user_path, exist_ok=True)
+
+            # Collect statistics for all users
+            users_statistics = []
+            
+            print("\nCreating graphs for each user:")
+            for user in unique_users:
+                user_path = os.path.join(users_base_path, user)
+                
+                # Get weekly issues data for the user
+                user_weekly_data = get_user_weekly_issues(
+                    issues_data=issues_data,
+                    username=user,
+                    start_week=start_week,
+                    end_week=end_week,
+                    current_year=current_year
+                )
+                
+                # Get weekly scores data for the user
+                user_weekly_scores = get_user_weekly_scores(
+                    issues_data=issues_data,
+                    username=user,
+                    start_week=start_week,
+                    end_week=end_week,
+                    current_year=current_year
+                )
+                
+                # Collect total statistics for this user
+                total_created = sum(week['created_issues'] for week in user_weekly_data)
+                total_closed = sum(week['closed_issues'] for week in user_weekly_data)
+                total_score = sum(week['open_score'] for week in user_weekly_scores)
+                
+                users_statistics.append({
+                    'username': user,
+                    'open_issues': user_weekly_data[-1]['open_issues'],  # Get only last week's open issues
+                    'total_score': user_weekly_scores[-1]['open_score']  # Get only last week's score
+                })
+                
+                # Create graph for the user
+                create_user_issues_graph(
+                    user_weekly_data=user_weekly_data,
+                    username=user,
+                    save_path=user_path
+                )
+                
+                # Create score graph for the user
+                create_user_scores_graph(
+                    user_weekly_data=user_weekly_scores,
+                    username=user,
+                    save_path=user_path
+                )
+                
+                # Add the new priority levels graph
+                create_user_priority_levels_graph(
+                    issues_data=issues_data,
+                    username=user,
+                    start_week=start_week,
+                    end_week=end_week,
+                    current_year=current_year,
+                    save_path=user_path
+                )
+                
+                # Print user statistics if logging is enabled
+                if os.getenv("PRINT_LOGS_ANALYSIS_RESULTS", "false").lower() == "true":
+                    print(f"\nWeekly statistics for {user}:")
+                    headers = ["Week", "Open Issues", "Created", "Closed"]
+                    table_data = [
+                        [
+                            week_data['week'],
+                            week_data['open_issues'],
+                            week_data['created_issues'],
+                            week_data['closed_issues']
+                        ]
+                        for week_data in user_weekly_data
                     ]
-                    for week_data in user_weekly_data
-                ]
-                print(tabulate(table_data, headers=headers, tablefmt="grid"))
+                    print(tabulate(table_data, headers=headers, tablefmt="grid"))
 
-    # --------------------------------------------------------------
-    # Create user distribution charts
-    create_user_distribution_charts(
-        users_statistics=users_statistics,
-        end_week=end_week,
-        save_path="/workspace/tmp"
-    )
+        # --------------------------------------------------------------
+        # Create user distribution charts
+        create_user_distribution_charts(
+            users_statistics=users_statistics,
+            end_week=end_week,
+            save_path="/workspace/tmp"
+        )
 
-    # --------------------------------------------------------------
-    # After creating all graphs, merge them into PDF
-    create_pdf_report(start_week, end_week)
+        # --------------------------------------------------------------
+        # After creating all graphs, merge them into PDF
+        create_pdf_report(start_week, end_week)
 
-    # --------------------------------------------------------------
-    # Create users PDF report
-    create_users_pdf_report(start_week, end_week)
+        # --------------------------------------------------------------
+        # Create users PDF report
+        create_users_pdf_report(start_week, end_week)
+
+    elif args.report_type == 'pr-issues':
+        pass
+    else:
+        print("Invalid report type. Please use 'pdf' or 'pr-issues'.")
+        exit(1)
+
 
 
     exit()
