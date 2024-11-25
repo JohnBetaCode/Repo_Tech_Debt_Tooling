@@ -1771,21 +1771,22 @@ if __name__ == "__main__":
                     ]
                     print(tabulate(table_data, headers=headers, tablefmt="grid"))
 
-        # --------------------------------------------------------------
-        # Create user distribution charts
-        create_user_distribution_charts(
-            users_statistics=users_statistics,
-            end_week=end_week,
-            save_path="/workspace/tmp"
-        )
 
         # --------------------------------------------------------------
         # After creating all graphs, merge them into PDF
         create_pdf_report(start_week, end_week)
 
         # --------------------------------------------------------------
-        # Create users PDF report
-        create_users_pdf_report(start_week, end_week)
+        # Create user distribution charts
+        if os.getenv("PERFORM_USER_ANALYSIS", "false").lower() == "true":
+            create_user_distribution_charts(
+                users_statistics=users_statistics,
+                end_week=end_week,
+                save_path="/workspace/tmp"
+            )
+
+            # Create users PDF report
+            create_users_pdf_report(start_week, end_week)
 
     elif args.report_type == 'pr-issues':
         pass
