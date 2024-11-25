@@ -62,10 +62,10 @@ show_help() {
     exit 1
 }
 
-# Add delete flag check and shift arguments if needed
-DELETE_FILES=false
+# Check for delete flag and delete files if set
 if [[ "$1" == "-d" ]]; then
-    DELETE_FILES=true
+    echo "Deleting all files in the tmp directory..."
+    rm -rf tmp/*
     shift
 fi
 
