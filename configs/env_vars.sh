@@ -1,7 +1,7 @@
 # Configuration flags for report generation:
 
 # Whether to perform cleanup operations during report generation
-export GENERATE_REPORT_CLEANUP=true
+export GENERATE_REPORT_CLEANUP=false
 
 # Toggle for analyzing user-related metrics
 export PERFORM_USER_ANALYSIS=false

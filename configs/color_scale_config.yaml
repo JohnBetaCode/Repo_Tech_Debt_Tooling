@@ -1,0 +1,16 @@
+color_scale:
+  - range: [0, 20]
+    color: "#90EE90"    # Light green
+    name: "Healthy"
+    
+  - range: [20, 50]
+    color: "#FFD700"    # Gold
+    name: "Moderate"
+    
+  - range: [50, 80]
+    color: "#FFA07A"    # Light salmon
+    name: "High"
+    
+  - range: [80, 150]
+    color: "#FF6B6B"    # Light red
+    name: "Critical"
