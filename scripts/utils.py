@@ -8,6 +8,8 @@ from datetime import date, timedelta
 import matplotlib.pyplot as plt
 from tabulate import tabulate
 import numpy as np
+import yaml
+from matplotlib.patches import Rectangle
 
 
 # ----------------------------------------------------------------
@@ -452,17 +454,17 @@ def create_issues_score_graph(
     """
     Creates and saves a graph showing weekly GitHub issues scores based on priority.
     Uses bars for created/closed issues scores and line for open issues scores.
-
-    Args:
-        issues_data (list): List of GitHub issues
-        start_week (int): Starting week number (1-52)
-        end_week (int): Ending week number (1-52)
-        current_year (int): Year for the analysis
-        save_path (str, optional): Directory to save the graph. Defaults to "/workspace/tmp"
-
-    Returns:
-        None: Saves the graph as 'issues_score.png'
+    Includes background color zones based on score ranges defined in color_scale_config.yaml.
     """
+    # Load color scale configuration
+    try:
+        with open('configs/color_scale_config.yaml', 'r') as file:
+            config = yaml.safe_load(file)
+            color_scales = config['color_scale']
+    except Exception as e:
+        print(f"Warning: Could not load color scale configuration: {str(e)}")
+        color_scales = []
+
     weeks = list(range(start_week, end_week + 1))
     open_scores = []
     created_scores = []
@@ -496,7 +498,35 @@ def create_issues_score_graph(
         closed_scores.append(closed_score)
 
     # Create the visualization
-    plt.figure(figsize=(12, 6))
+    fig, ax = plt.subplots(figsize=(12, 6))
+
+    # Add background color zones if configuration is available
+    if color_scales:
+        # Get the full y-axis range
+        max_score = max(max(open_scores), max(created_scores), max(closed_scores))
+        y_max = max(max_score * 1.2, color_scales[-1]['range'][1])  # Use larger of max score or highest range
+        
+        # Add colored background zones
+        for scale in color_scales:
+            range_min, range_max = scale['range']
+            rect = Rectangle(
+                (min(weeks) - 0.5, range_min),  # (x, y)
+                max(weeks) - min(weeks) + 1,    # width
+                range_max - range_min,          # height
+                facecolor=scale['color'],
+                alpha=0.2,
+                zorder=0  # Ensure background is behind other elements
+            )
+            ax.add_patch(rect)
+            
+            # Add zone labels on the right side
+            ax.text(
+                max(weeks) + 0.6,              # x position (just outside the plot)
+                (range_min + range_max) / 2,    # y position (middle of zone)
+                scale['name'],
+                verticalalignment='center',
+                fontsize=8
+            )
 
     # Plot bars for created and closed issues scores
     bar_width = 0.35
@@ -546,7 +576,8 @@ def create_issues_score_graph(
 
     # Force x-axis to show all weeks
     plt.xticks(weeks)
-    plt.xlim(min(weeks) - 0.5, max(weeks) + 0.5)
+    plt.xlim(min(weeks) - 0.5, max(weeks) + 2.0)  # Extended right margin for labels
+    plt.ylim(0, y_max)
 
     # Save the plot
     plt.savefig(

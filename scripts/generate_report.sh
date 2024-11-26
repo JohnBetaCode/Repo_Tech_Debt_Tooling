@@ -1,4 +1,6 @@
 #!/bin/bash
+
+git pull
 clear
 
 # Define the directories

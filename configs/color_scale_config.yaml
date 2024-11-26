@@ -11,6 +11,6 @@ color_scale:
     color: "#FFA07A"    # Light salmon
     name: "High"
     
-  - range: [80, 150]
+  - range: [80, 120]
     color: "#FF6B6B"    # Light red
     name: "Critical"

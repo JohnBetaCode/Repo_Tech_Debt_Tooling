@@ -4,7 +4,7 @@
 export GENERATE_REPORT_CLEANUP=false
 
 # Toggle for analyzing user-related metrics
-export PERFORM_USER_ANALYSIS=false
+export PERFORM_USER_ANALYSIS=true
 
 # Toggle for analyzing score-related metrics
 export PERFORM_SCORE_ANALYSIS=true
@@ -13,7 +13,7 @@ export PERFORM_SCORE_ANALYSIS=true
 export PERFORM_QUANTITATIVE_ANALYSIS=true
 
 # Whether to print analysis results to logs
-export PRINT_LOGS_ANALYSIS_RESULTS=false
+export PRINT_LOGS_ANALYSIS_RESULTS=true
 
 # Toggle for analyzing priority-related metrics
 export PERFORM_PRIORITY_ANALYSIS=true
