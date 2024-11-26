@@ -10,6 +10,8 @@ from tabulate import tabulate
 import numpy as np
 import yaml
 from matplotlib.patches import Rectangle
+from PIL import Image, ImageDraw, ImageFont
+import pytz
 
 
 # ----------------------------------------------------------------
@@ -670,25 +672,15 @@ def calculate_issue_score(issue: dict) -> int:
 def create_pdf_report(
     start_week: int, end_week: int, save_path: str = "/workspace/tmp"
 ) -> None:
-    """
-    Creates a single-page PDF report with PNG files arranged vertically in this order:
-    1. Issues activity graph
-    2. Issues score graph
-    3. Issues severity graph
-    4. User distribution pie charts
-
-    Args:
-        start_week (int): Starting week number
-        end_week (int): Ending week number
-        save_path (str, optional): Directory containing PNGs and where to save PDF. Defaults to "/workspace/tmp"
-    """
     try:
-        from PIL import Image
-        from datetime import datetime
-
         # Get dates for filename
         start_date = get_week_start_date(datetime.now().year, start_week)
         end_date = get_week_end_date(datetime.now().year, end_week)
+
+        # Get current time in configured timezone
+        tz = pytz.timezone(os.getenv('REPORT_TIMEZONE', 'America/New_York'))  # Fallback to EST/EDT if not set
+        current_time = datetime.now(tz)
+        header_text = f"Report generated on {current_time.strftime('%Y-%m-%d %H:%M:%S')} {tz.zone}"
 
         # Create filename
         pdf_filename = (
@@ -711,16 +703,17 @@ def create_pdf_report(
             print("No PNG files found to merge")
             return
 
-        # Rest of the function remains the same...
+        # Update total height calculation to include header
         DPI = 300
         LETTER_WIDTH = int(8.5 * DPI)
         MARGIN = int(0.5 * DPI)
         SPACING = int(0.25 * DPI)
+        HEADER_HEIGHT = int(0.3 * DPI)  # Height for header text
         CONTENT_WIDTH = LETTER_WIDTH - (2 * MARGIN)
 
         # Process images and calculate total height needed
         processed_images = []
-        total_height = MARGIN
+        total_height = MARGIN + HEADER_HEIGHT + SPACING  # Add header height to total
 
         for png_file in png_files:
             image_path = os.path.join(save_path, png_file)
@@ -740,7 +733,22 @@ def create_pdf_report(
 
         # Create the final image
         final_image = Image.new("RGB", (LETTER_WIDTH, total_height), "white")
-        y_position = MARGIN
+        
+        # Add header text
+        draw = ImageDraw.Draw(final_image)
+        try:
+            font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 36)
+        except:
+            font = ImageFont.load_default()
+        
+        # Calculate text position to center it
+        text_bbox = draw.textbbox((0, 0), header_text, font=font)
+        text_width = text_bbox[2] - text_bbox[0]
+        x_position = (LETTER_WIDTH - text_width) // 2
+        draw.text((x_position, MARGIN), header_text, font=font, fill="black")
+
+        # Update starting y_position for images to account for header
+        y_position = MARGIN + HEADER_HEIGHT + SPACING
 
         # Paste all images
         for img in processed_images:
@@ -752,10 +760,9 @@ def create_pdf_report(
         final_image.save(pdf_path, resolution=DPI)
         print(f"PDF report saved as '{pdf_filename}'")
 
-    except ImportError:
-        print(
-            "Error: PIL (Pillow) library is required. Install it using: pip install Pillow"
-        )
+    except ImportError as e:
+        print(f"Error: Required library not found: {str(e)}")
+        print("Make sure PIL (Pillow) and pytz are installed: pip install Pillow pytz")
     except Exception as e:
         print(f"Error creating PDF: {str(e)}")
 
