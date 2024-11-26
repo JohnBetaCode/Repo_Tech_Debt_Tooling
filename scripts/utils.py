@@ -398,7 +398,7 @@ def create_issues_activity_graph(
         created_issues_data,
         bar_width,
         label="# Created Issues",
-        color="g",
+        color="r",
         alpha=0.6,
     )
     plt.bar(
@@ -406,7 +406,7 @@ def create_issues_activity_graph(
         closed_issues_data,
         bar_width,
         label="# Closed Issues",
-        color="r",
+        color="g",
         alpha=0.6,
     )
 
@@ -540,7 +540,7 @@ def create_issues_score_graph(
         created_scores,
         bar_width,
         label="Created Issues Score",
-        color="g",
+        color="r",
         alpha=0.6,
     )
     plt.bar(
@@ -548,7 +548,7 @@ def create_issues_score_graph(
         closed_scores,
         bar_width,
         label="Closed Issues Score",
-        color="r",
+        color="g",
         alpha=0.6,
     )
 
@@ -812,7 +812,7 @@ def create_issues_score_levels_graph(
     # Create stacked bar chart on primary axis
     bottom = np.zeros(len(weeks))
     colors = {
-        "PRIORITY_LOW": "#7FBA00",      # Green
+        "PRIORITY_LOW": "#FFFF00",       # Yellow
         "PRIORITY_MEDIUM": "#FFA500",    # Orange
         "PRIORITY_HIGH": "#F35325",      # Red
         "PRIORITY_SATANIC": "#8B0000",   # Dark Red
@@ -1284,7 +1284,7 @@ def create_user_scores_graph(
         created_scores,
         bar_width,
         label="Created Issues Score",
-        color="g",
+        color="r",
         alpha=0.6
     )
     plt.bar(
@@ -1292,7 +1292,7 @@ def create_user_scores_graph(
         closed_scores,
         bar_width,
         label="Closed Issues Score",
-        color="r",
+        color="g",
         alpha=0.6
     )
 
@@ -1493,7 +1493,7 @@ def create_user_priority_levels_graph(
     # Create stacked bar chart on primary axis
     bottom = np.zeros(len(weeks))
     colors = {
-        "PRIORITY_LOW": "#7FBA00",      # Green
+        "PRIORITY_LOW": "#FFFF00",       # Yellow
         "PRIORITY_MEDIUM": "#FFA500",    # Orange
         "PRIORITY_HIGH": "#F35325",      # Red
         "PRIORITY_SATANIC": "#8B0000",   # Dark Red
