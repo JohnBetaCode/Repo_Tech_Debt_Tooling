@@ -13,7 +13,7 @@ export PERFORM_SCORE_ANALYSIS=true
 export PERFORM_QUANTITATIVE_ANALYSIS=true
 
 # Whether to print analysis results to logs
-export PRINT_LOGS_ANALYSIS_RESULTS=true
+export PRINT_LOGS_ANALYSIS_RESULTS=false
 
 # Toggle for analyzing priority-related metrics
 export PERFORM_PRIORITY_ANALYSIS=true
