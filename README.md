@@ -12,6 +12,8 @@ Key use cases:
 - Issue prioritization insights
 - Historical trend analysis for process improvement
 
+## Motivation
+
 ## Example Report
 ![Example Report](https://github.com/user-attachments/assets/c99c43c9-fe16-4309-9f57-9f3c0ff6636a)
 

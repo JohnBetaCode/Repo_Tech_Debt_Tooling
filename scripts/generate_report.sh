@@ -45,7 +45,7 @@ fi
 show_menu() {
     echo "Please select an option:"
     echo "1. Generate PDF reports (User reports and total report)"
-    echo "2. Generate PR and Issues report"
+    echo "2. Generate/Print PR and Issues report between dates"
     echo "3. Exit"
     read -p "Enter your choice (1-3): " choice
 }
@@ -94,6 +94,12 @@ case $choice in
         # Set default dates to today if not specified
         start_date=${start_date:-$(date +%Y-%m-%d)}
         end_date=${end_date:-$(date +%Y-%m-%d)}
+        # Validate date format
+        date_regex="^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        if ! [[ $start_date =~ $date_regex ]] || ! [[ $end_date =~ $date_regex ]]; then
+            echo "Error: Dates must be in YYYY-MM-DD format"
+            exit 1
+        fi
         python3 scripts/utils.py --report-type pr-issues --start-date "$start_date" --end-date "$end_date"
         ;;
     3)

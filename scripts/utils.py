@@ -1540,6 +1540,96 @@ def load_scores_config(path: str, filename: str) -> dict:
         raise
 
 
+def get_closed_issues_details(issues: list, start_date: str, end_date: str) -> dict:
+    """
+    Gets the number and details of issues closed between two dates.
+
+    Args:
+        issues (list): List of GitHub issues
+        start_date (str): Start date in 'YYYY-MM-DD' format
+        end_date (str): End date in 'YYYY-MM-DD' format
+
+    Returns:
+        dict: Dictionary containing count and list of closed issues
+        Example: {
+            'count': 5,
+            'issues': [
+                {'title': 'Fix bug in login', 'closed_at': '2024-03-15', 'url': 'https://...'},
+                ...
+            ]
+        }
+    """
+    # Convert string dates to datetime objects
+    start_date_obj = datetime.strptime(start_date, "%Y-%m-%d").date()
+    end_date_obj = datetime.strptime(end_date, "%Y-%m-%d").date()
+
+    closed_issues = []
+
+    for issue in issues:
+        # Skip if issue is not closed or has no closed_at date
+        if issue["state"] != "closed" or not issue["closed_at"]:
+            continue
+
+        # Parse the closed_at date
+        closed_at_date = datetime.strptime(issue["closed_at"], "%Y-%m-%dT%H:%M:%SZ").date()
+
+        # Check if the issue was closed within the date range
+        if start_date_obj <= closed_at_date <= end_date_obj:
+            closed_issues.append({
+                'title': issue['title'],
+                'closed_at': closed_at_date.strftime("%Y-%m-%d"),
+                'url': issue['html_url']
+            })
+
+    return {
+        'count': len(closed_issues),
+        'issues': sorted(closed_issues, key=lambda x: x['closed_at'])
+    }
+
+
+def get_created_issues_details(issues: list, start_date: str, end_date: str) -> dict:
+    """
+    Gets the number and details of issues created between two dates.
+
+    Args:
+        issues (list): List of GitHub issues
+        start_date (str): Start date in 'YYYY-MM-DD' format
+        end_date (str): End date in 'YYYY-MM-DD' format
+
+    Returns:
+        dict: Dictionary containing count and list of created issues
+        Example: {
+            'count': 5,
+            'issues': [
+                {'title': 'New feature request', 'created_at': '2024-03-15', 'url': 'https://...'},
+                ...
+            ]
+        }
+    """
+    # Convert string dates to datetime objects
+    start_date_obj = datetime.strptime(start_date, "%Y-%m-%d").date()
+    end_date_obj = datetime.strptime(end_date, "%Y-%m-%d").date()
+
+    created_issues = []
+
+    for issue in issues:
+        # Parse the created_at date
+        created_at_date = datetime.strptime(issue["created_at"], "%Y-%m-%dT%H:%M:%SZ").date()
+
+        # Check if the issue was created within the date range
+        if start_date_obj <= created_at_date <= end_date_obj:
+            created_issues.append({
+                'title': issue['title'],
+                'created_at': created_at_date.strftime("%Y-%m-%d"),
+                'url': issue['html_url']
+            })
+
+    return {
+        'count': len(created_issues),
+        'issues': sorted(created_issues, key=lambda x: x['created_at'])
+    }
+
+
 # ----------------------------------------------------------------
 if __name__ == "__main__":
 
@@ -1832,7 +1922,32 @@ if __name__ == "__main__":
 
 
     elif args.report_type == 'pr-issues':
-        pass
+        if not args.start_date or not args.end_date:
+            print("Error: start-date and end-date are required for pr-issues report")
+            exit(1)
+
+        # Get closed issues
+        closed_issues = get_closed_issues_details(issues_data, args.start_date, args.end_date)
+        print(f"\nClosed Issues between {args.start_date} and {args.end_date}:")
+        print(f"Total count: {closed_issues['count']}")
+        
+        if closed_issues['issues']:
+            print("\nClosed Issues list:")
+            for issue in closed_issues['issues']:
+                issue_number = issue['url'].split('/')[-1]
+                print(f"* [{issue['closed_at']}] [#{issue_number}]{issue['title']}: {issue['url']}")
+
+        # Get created issues
+        created_issues = get_created_issues_details(issues_data, args.start_date, args.end_date)
+        print(f"\nCreated Issues between {args.start_date} and {args.end_date}:")
+        print(f"Total count: {created_issues['count']}")
+        
+        if created_issues['issues']:
+            print("\nCreated Issues list:")
+            for issue in created_issues['issues']:
+                issue_number = issue['url'].split('/')[-1]
+                print(f"* [{issue['created_at']}] [#{issue_number}]{issue['title']}: {issue['url']}")
+
     else:
         print("Invalid report type. Please use 'pdf' or 'pr-issues'.")
         exit(1)
