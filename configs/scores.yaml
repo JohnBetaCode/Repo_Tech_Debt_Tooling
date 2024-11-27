@@ -1,5 +1,16 @@
 priority_scores:
-  PRIORITY_LOW: 1
-  PRIORITY_MEDIUM: 2
-  PRIORITY_HIGH: 3
-  PRIORITY_SATANIC: 5
+  PRIORITY_LOW: 
+    weight: 1
+    color: "#FFFF00"
+  PRIORITY_MEDIUM:
+    weight: 2
+    color: "#FFA500"
+  PRIORITY_HIGH: 
+    weight: 3
+    color: "#F35325"
+  SATANIC: 
+    weight: 5
+    color: "#8B0000"
+  UNCATEGORIZED: 
+    weight: 0
+    color: "#A9A9A9"
