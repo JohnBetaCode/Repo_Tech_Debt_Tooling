@@ -282,55 +282,50 @@ def get_issues_closed_between_dates(issues, start_date, end_date):
     return closed_issues
 
 
-def categorize_issues_by_priority(issues: list) -> dict:
+def categorize_issues_by_priority(issues: list, priority_scores: dict) -> dict:
     """
-    Categorizes issues based on their priority labels and calculates scores.
-
-    Priority scoring:
-    - PRIORITY_LOW: 1 point
-    - PRIORITY_MEDIUM: 2 points
-    - PRIORITY_HIGH: 3 points
-    - PRIORITY_SATANIC: 5 points
-    - No priority label: Categorized as UNCATEGORIZED
+    Categorizes issues based on their priority labels and calculates scores using provided weights.
 
     Args:
         issues (list): List of issues to categorize
+        priority_scores (dict): Dictionary containing priority configurations with weights and colors
+            Example:
+            {
+                'PRIORITY_LOW': {'weight': 1, 'color': '#FFFF00'},
+                'PRIORITY_MEDIUM': {'weight': 2, 'color': '#FFA500'},
+                'PRIORITY_HIGH': {'weight': 3, 'color': '#F35325'},
+                'SATANIC': {'weight': 5, 'color': '#8B0000'},
+                'UNCATEGORIZED': {'weight': 0, 'color': '#A9A9A9'}
+            }
 
     Returns:
         dict: Dictionary with categories as keys, containing score and count information
         Example:
         {
-            'PRIORITY_LOW': {'total_score': 5, 'issue_count': 5},
-            'PRIORITY_MEDIUM': {'total_score': 8, 'issue_count': 4},
-            'UNCATEGORIZED': {'total_score': 0, 'issue_count': 3}
+            'PRIORITY_LOW': {'total_score': 5, 'issue_count': 5, 'color': '#FFFF00'},
+            'PRIORITY_MEDIUM': {'total_score': 8, 'issue_count': 4, 'color': '#FFA500'},
+            'UNCATEGORIZED': {'total_score': 0, 'issue_count': 3, 'color': '#A9A9A9'}
         }
     """
-    # Initialize categories dictionary
+    # Initialize categories dictionary using the priority_scores structure
     categories = {
-        "PRIORITY_LOW": {"total_score": 0, "issue_count": 0},
-        "PRIORITY_MEDIUM": {"total_score": 0, "issue_count": 0},
-        "PRIORITY_HIGH": {"total_score": 0, "issue_count": 0},
-        "PRIORITY_SATANIC": {"total_score": 0, "issue_count": 0},
-        "UNCATEGORIZED": {"total_score": 0, "issue_count": 0},
-    }
-
-    # Priority scores mapping
-    priority_scores = {
-        "PRIORITY_LOW": 1,
-        "PRIORITY_MEDIUM": 2,
-        "PRIORITY_HIGH": 3,
-        "PRIORITY_SATANIC": 5,
+        priority: {
+            "total_score": 0,
+            "issue_count": 0,
+            "color": config['color']
+        }
+        for priority, config in priority_scores.items()
     }
 
     for issue in issues:
         priority_found = False
 
         # Check labels for priority
-        for label in issue["labels"]:
-            label_name = label["name"]
+        for label in issue.get("labels", []):
+            label_name = label.get("name", "")
             if label_name in priority_scores:
-                score = priority_scores[label_name]
-                categories[label_name]["total_score"] += score
+                weight = priority_scores[label_name]['weight']
+                categories[label_name]["total_score"] += weight
                 categories[label_name]["issue_count"] += 1
                 priority_found = True
                 break
@@ -451,6 +446,7 @@ def create_issues_score_graph(
     start_week: int,
     end_week: int,
     current_year: int,
+    priority_scores: dict,
     save_path: str = "/workspace/tmp",
 ) -> None:
     """
@@ -486,9 +482,9 @@ def create_issues_score_graph(
         )
 
         # Calculate scores for each category
-        open_categories = categorize_issues_by_priority(open_issues)
-        created_categories = categorize_issues_by_priority(created_issues)
-        closed_categories = categorize_issues_by_priority(closed_issues)
+        open_categories = categorize_issues_by_priority(issues=open_issues, priority_scores=priority_scores)
+        created_categories = categorize_issues_by_priority(issues=created_issues, priority_scores=priority_scores)
+        closed_categories = categorize_issues_by_priority(issues=closed_issues, priority_scores=priority_scores)
 
         # Sum up total scores
         open_score = sum(cat["total_score"] for cat in open_categories.values())
@@ -772,6 +768,7 @@ def create_issues_score_levels_graph(
     start_week: int,
     end_week: int,
     current_year: int,
+    priority_scores: dict,
     save_path: str = "/workspace/tmp",
 ) -> None:
     """
@@ -1627,7 +1624,7 @@ if __name__ == "__main__":
     # --------------------------------------------------------------
     # Load scores configuration
     scores_config = load_scores_config(path="configs", filename="scores.yaml")
-    scores_config = scores_config["priority_scores"]
+    priority_scores = scores_config["priority_scores"]
 
     # --------------------------------------------------------------
     if args.report_type == 'pdf':
@@ -1692,11 +1689,9 @@ if __name__ == "__main__":
                 issues=issues_data, start_date=week_start, end_date=week_end
             )
 
-            categories = categorize_issues_by_priority(issues=issues_closed_this_week)
-            
-            print(categories)
-            exit()
-            
+            categories = categorize_issues_by_priority(
+                issues=issues_closed_this_week, priority_scores=priority_scores)
+                        
             total_score = sum(cat["total_score"] for cat in categories.values())
             
             # Add row to table data
@@ -1723,6 +1718,7 @@ if __name__ == "__main__":
                 current_year=current_year,
             )
 
+
         # --------------------------------------------------------------
         # Create score graph only if PERFORM_SCORE_ANALYSIS is true
         if os.getenv("PERFORM_SCORE_ANALYSIS", "false").lower() == "true":
@@ -1731,7 +1727,10 @@ if __name__ == "__main__":
                 start_week=start_week,
                 end_week=end_week,
                 current_year=current_year,
+                priority_scores=priority_scores
             )
+
+
 
         # --------------------------------------------------------------
         # Create priority levels graph only if PERFORM_PRIORITY_ANALYSIS is true
@@ -1741,7 +1740,11 @@ if __name__ == "__main__":
                 start_week=start_week,
                 end_week=end_week,
                 current_year=current_year,
+                priority_scores=priority_scores
             )
+
+        exit()
+
 
         # --------------------------------------------------------------
         # Perform user analysis only if PERFORM_USER_ANALYSIS is true
