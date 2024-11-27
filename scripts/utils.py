@@ -780,22 +780,24 @@ def create_issues_score_levels_graph(
         start_week (int): Starting week number (1-52)
         end_week (int): Ending week number (1-52)
         current_year (int): Year for the analysis
+        priority_scores (dict): Dictionary containing priority configurations with weights and colors
+            Example: {
+                'PRIORITY_LOW': {'weight': 1, 'color': '#FFFF00'},
+                'PRIORITY_MEDIUM': {'weight': 2, 'color': '#FFA500'},
+                'PRIORITY_HIGH': {'weight': 3, 'color': '#F35325'},
+                'SATANIC': {'weight': 5, 'color': '#8B0000'},
+                'UNCATEGORIZED': {'weight': 0, 'color': '#A9A9A9'}
+            }
         save_path (str, optional): Directory to save the graph. Defaults to "/workspace/tmp"
     """
     weeks = list(range(start_week, end_week + 1))
-    priority_data = {
-        "PRIORITY_LOW": [],
-        "PRIORITY_MEDIUM": [],
-        "PRIORITY_HIGH": [],
-        "PRIORITY_SATANIC": [],
-        "UNCATEGORIZED": []
-    }
+    priority_data = {priority: [] for priority in priority_scores.keys()}
 
     # Collect data for each week
     for week in weeks:
         week_end = get_week_end_date(current_year, week)
         open_issues = get_open_issues_up_to_date(issues_data, week_end)
-        categories = categorize_issues_by_priority(open_issues)
+        categories = categorize_issues_by_priority(open_issues, priority_scores)
         
         for priority in priority_data.keys():
             priority_data[priority].append(categories[priority]["issue_count"])
@@ -808,24 +810,25 @@ def create_issues_score_levels_graph(
 
     # Create stacked bar chart on primary axis
     bottom = np.zeros(len(weeks))
-    colors = {
-        "PRIORITY_LOW": "#FFFF00",       # Yellow
-        "PRIORITY_MEDIUM": "#FFA500",    # Orange
-        "PRIORITY_HIGH": "#F35325",      # Red
-        "PRIORITY_SATANIC": "#8B0000",   # Dark Red
-        "UNCATEGORIZED": "#A9A9A9"       # Gray
-    }
-
+    
     for priority, counts in priority_data.items():
-        ax1.bar(weeks, counts, bottom=bottom, label=priority, color=colors[priority], alpha=0.7)
-        bottom += np.array(counts)
-
+        ax1.bar(
+            weeks,
+            counts,
+            bottom=bottom,
+            label=priority,
+            color=priority_scores[priority]['color'],
+            alpha=0.7
+        )
+        
         # Add value labels if count > 0
         for i, count in enumerate(counts):
             if count > 0:
                 # Position the text in the middle of its segment
-                height = bottom[i] - (count / 2)
+                height = bottom[i] + (count / 2)
                 ax1.text(weeks[i], height, str(count), ha='center', va='center')
+        
+        bottom += np.array(counts)
 
     # Set up the primary x-axis (weeks)
     ax1.set_xlim(min(weeks) - 0.5, max(weeks) + 0.5)
@@ -851,21 +854,15 @@ def create_issues_score_levels_graph(
     ax2.set_xticks(month_positions)
     ax2.set_xticklabels(month_labels)
     
-    # Adjust layout to prevent label overlap
     plt.title("GitHub Issues by Priority Level per Week")
     ax1.set_ylabel("Number of Issues")
     ax1.grid(True, linestyle="--", alpha=0.7)
-    
-    # Move legend inside the plot area in the upper right corner
     ax1.legend(loc='upper left')
-
-    # Remove the subplots_adjust call since we're keeping the legend inside
-    # plt.subplots_adjust(right=0.85)  # Remove this line
 
     # Save the plot
     plt.savefig(
-        os.path.join(save_path, "issues_priority_levels.png"), 
-        bbox_inches="tight", 
+        os.path.join(save_path, "issues_priority_levels.png"),
+        bbox_inches="tight",
         dpi=300
     )
     print("Graph saved as 'issues_priority_levels.png'")
@@ -1191,7 +1188,8 @@ def get_user_weekly_scores(
     username: str,
     start_week: int,
     end_week: int,
-    current_year: int
+    current_year: int,
+    priority_scores: dict,
 ) -> list:
     """
     Gets the priority scores of issues assigned to a user for each week.
@@ -1229,9 +1227,9 @@ def get_user_weekly_scores(
         closed_issues = get_issues_closed_between_dates(user_issues, week_start, week_end)
 
         # Calculate scores for each category
-        open_categories = categorize_issues_by_priority(open_issues)
-        created_categories = categorize_issues_by_priority(created_issues)
-        closed_categories = categorize_issues_by_priority(closed_issues)
+        open_categories = categorize_issues_by_priority(open_issues, priority_scores)
+        created_categories = categorize_issues_by_priority(created_issues, priority_scores)
+        closed_categories = categorize_issues_by_priority(closed_issues, priority_scores)
 
         # Sum up total scores
         open_score = sum(cat["total_score"] for cat in open_categories.values())
@@ -1444,6 +1442,7 @@ def create_user_priority_levels_graph(
     end_week: int,
     current_year: int,
     save_path: str,
+    priority_scores: dict,
 ) -> None:
     """
     Creates and saves a graph showing weekly GitHub issues by priority level for a specific user.
@@ -1476,7 +1475,7 @@ def create_user_priority_levels_graph(
     for week in weeks:
         week_end = get_week_end_date(current_year, week)
         open_issues = get_open_issues_up_to_date(user_issues, week_end)
-        categories = categorize_issues_by_priority(open_issues)
+        categories = categorize_issues_by_priority(open_issues, priority_scores)
         
         for priority in priority_data.keys():
             priority_data[priority].append(categories[priority]["issue_count"])
@@ -1743,8 +1742,6 @@ if __name__ == "__main__":
                 priority_scores=priority_scores
             )
 
-        exit()
-
 
         # --------------------------------------------------------------
         # Perform user analysis only if PERFORM_USER_ANALYSIS is true
@@ -1796,7 +1793,8 @@ if __name__ == "__main__":
                     username=user,
                     start_week=start_week,
                     end_week=end_week,
-                    current_year=current_year
+                    current_year=current_year,
+                    priority_scores=priority_scores
                 )
                 
                 # Collect total statistics for this user
@@ -1831,7 +1829,8 @@ if __name__ == "__main__":
                     start_week=start_week,
                     end_week=end_week,
                     current_year=current_year,
-                    save_path=user_path
+                    save_path=user_path,
+                    priority_scores=priority_scores
                 )
                 
                 # Print user statistics if logging is enabled
