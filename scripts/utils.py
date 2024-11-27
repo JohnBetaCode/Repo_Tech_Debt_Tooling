@@ -1550,77 +1550,31 @@ def create_user_priority_levels_graph(
     plt.close()
 
 
-def load_scores_config(path: str) -> dict:
+def load_scores_config(path: str, filename: str) -> dict:
     """
-    Loads and validates the priority scores configuration from YAML file.
+    Loads scores configuration from a YAML file.
 
     Args:
-        path (str): Directory path containing the scores.yaml file
+        path (str): Directory path where the YAML file is located.
+        filename (str): Name of the YAML file.
 
     Returns:
-        dict: Dictionary containing priority scores configuration
-        Example:
-        {
-            'priority_scores': {
-                'PRIORITY_LOW': {'weight': 1, 'color': '#FFFF00'},
-                'PRIORITY_MEDIUM': {'weight': 2, 'color': '#FFA500'},
-                ...
-            }
-        }
+        dict: Dictionary containing the scores configuration.
 
     Raises:
-        FileNotFoundError: If scores.yaml file is not found
-        ValueError: If configuration is invalid or missing required fields
+        FileNotFoundError: If the file does not exist.
+        yaml.YAMLError: If there is an error parsing the YAML file.
     """
+    file_path = os.path.join(path, filename)
     try:
-        with open(os.path.join(path, 'scores.yaml'), 'r') as file:
+        with open(file_path, 'r') as file:
             config = yaml.safe_load(file)
-
-        # Validate configuration structure
-        if not isinstance(config, dict) or 'priority_scores' not in config:
-            raise ValueError("Invalid configuration: missing 'priority_scores' section")
-
-        priority_scores = config['priority_scores']
-        
-        # Validate each priority level
-        for priority, settings in priority_scores.items():
-            if not isinstance(settings, dict):
-                raise ValueError(f"Invalid configuration for {priority}: must be a dictionary")
-            
-            # Check required fields
-            if 'weight' not in settings:
-                raise ValueError(f"Missing 'weight' for {priority}")
-            if 'color' not in settings:
-                raise ValueError(f"Missing 'color' for {priority}")
-            
-            # Validate weight is a number
-            if not isinstance(settings['weight'], (int, float)):
-                raise ValueError(f"Invalid weight for {priority}: must be a number")
-            
-            # Validate color is a hex color code
-            if not isinstance(settings['color'], str) or not settings['color'].startswith('#'):
-                raise ValueError(f"Invalid color for {priority}: must be a hex color code")
-
-        print("Scores configuration loaded successfully")
-        return config
-
+            return config
     except FileNotFoundError:
-        print(f"Warning: scores.yaml not found in {path}")
-        # Return default configuration
-        return {
-            'priority_scores': {
-                'PRIORITY_LOW': {'weight': 1, 'color': '#FFFF00'},
-                'PRIORITY_MEDIUM': {'weight': 2, 'color': '#FFA500'},
-                'PRIORITY_HIGH': {'weight': 3, 'color': '#F35325'},
-                'PRIORITY_SATANIC': {'weight': 5, 'color': '#8B0000'},
-                'UNCATEGORIZED': {'weight': 0, 'color': '#A9A9A9'}
-            }
-        }
-    except yaml.YAMLError as e:
-        print(f"Error parsing scores.yaml: {str(e)}")
+        print(f"Error: The file {file_path} does not exist.")
         raise
-    except Exception as e:
-        print(f"Error loading scores configuration: {str(e)}")
+    except yaml.YAMLError as e:
+        print(f"Error parsing YAML file: {str(e)}")
         raise
 
 
@@ -1672,7 +1626,8 @@ if __name__ == "__main__":
 
     # --------------------------------------------------------------
     # Load scores configuration
-    scores_config = load_scores_config(path="configs")
+    scores_config = load_scores_config(path="configs", filename="scores.yaml")
+    scores_config = scores_config["priority_scores"]
 
     # --------------------------------------------------------------
     if args.report_type == 'pdf':
@@ -1737,7 +1692,11 @@ if __name__ == "__main__":
                 issues=issues_data, start_date=week_start, end_date=week_end
             )
 
-            categories = categorize_issues_by_priority(issues_closed_this_week)
+            categories = categorize_issues_by_priority(issues=issues_closed_this_week)
+            
+            print(categories)
+            exit()
+            
             total_score = sum(cat["total_score"] for cat in categories.values())
             
             # Add row to table data
