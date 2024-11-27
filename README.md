@@ -5,6 +5,22 @@ A comprehensive tool for analyzing and visualizing GitHub issues data, with a fo
 ## Description
 This tool provides detailed analysis and visualization of GitHub issues data, enabling teams to track technical debt, monitor team performance, and generate comprehensive reports. It supports various types of analysis including issue activity, priority-based scoring, and per-user metrics.
 
+Key use cases:
+- Technical debt monitoring and management
+- Sprint planning and capacity analysis
+- Team performance tracking and reporting
+- Issue prioritization insights
+- Historical trend analysis for process improvement
+
+## Example Report
+![Example Report](https://github.com/user-attachments/assets/c99c43c9-fe16-4309-9f57-9f3c0ff6636a)
+
+![Example Report](https://github.com/user-attachments/assets/e6a10325-84d5-4d89-82e1-2a63cfcf9008)
+
+![Example Report](https://github.com/user-attachments/assets/ec353487-0125-4e3f-a71c-a12ab2785879)
+
+![Example Report](https://github.com/user-attachments/assets/de3e2b49-b514-4fea-af23-2efc59fd28c9)
+
 ## Features
 
 ### Core Analysis
@@ -39,6 +55,20 @@ This tool provides detailed analysis and visualization of GitHub issues data, en
 - Multiple visualization types
 - Automatic cleanup options
 
+### Additional Analysis Types
+- **Sprint Analysis**
+  - Sprint velocity tracking
+  - Completion rate metrics
+  - Story point distribution
+- **Team Metrics**
+  - Response time analysis
+  - Resolution time tracking
+  - Workload distribution
+- **Label Analysis**
+  - Custom label tracking
+  - Label correlation insights
+  - Category-based grouping
+
 ## Configuration
 
 ### Environment Variables
@@ -72,9 +102,26 @@ export GITHUB_API_URL_ISSUES="https://api.github.com/repos/owner/repo/issues"
 export GITHUB_ACCEPT="application/vnd.github.v3+json"
 ```
 
+### Additional Configuration
+Create `configs/analysis_config.yaml` for custom analysis settings:
+```yaml
+sprint:
+  length_weeks: 2
+  start_day: "Monday"
+  
+labels:
+  technical_debt: ["tech-debt", "refactor"]
+  bugs: ["bug", "defect"]
+  features: ["feature", "enhancement"]
+
+metrics:
+  response_time_threshold: 48  # hours
+  resolution_time_target: 168  # hours
+```
+
 ## Installation
 
-### Using Dev Container
+### Using Dev Container (recommended)
 1. Open the project in VS Code
 2. Press `Ctrl+Shift+P` (Windows/Linux) or `Cmd+Shift+P` (macOS)
 3. Type "Dev Containers: Reopen in Container" and select it
@@ -176,5 +223,29 @@ Arguments:
 2. Create a feature branch
 3. Submit a pull request
 
-## License
-[Add your license information here]
+## Best Practices
+### Data Collection
+- Ensure consistent issue labeling
+- Maintain regular sprint cadence
+- Document priority changes
+- Keep issue descriptions updated
+
+### Analysis
+- Review trends monthly
+- Compare metrics across sprints
+- Track technical debt accumulation
+- Monitor team velocity changes
+
+### Reporting
+- Share reports in team retrospectives
+- Use insights for sprint planning
+- Track long-term trends
+- Identify process improvements
+
+## Troubleshooting
+Common issues and solutions:
+- **Rate Limiting**: Use token authentication and respect GitHub API limits
+- **Missing Data**: Ensure proper issue labeling and consistent sprint management
+- **Performance**: Enable caching for large repositories
+- **Report Generation**: Check file permissions and disk space
+
