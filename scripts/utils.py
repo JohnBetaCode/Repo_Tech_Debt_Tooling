@@ -612,6 +612,111 @@ def get_unique_users_from_issues(issues: list) -> list:
 
     return sorted(list(unique_users))
 
+def create_user_distribution_charts(
+    users_statistics: list,
+    end_week: int,
+    save_path: str = "/workspace/tmp"
+) -> None:
+    """
+    Creates two side-by-side pie charts showing the distribution of issues and scores among users
+    for the last analyzed week.
+
+    Args:
+        users_statistics (list): List of dictionaries containing user statistics
+        end_week (int): The last week number being analyzed
+        save_path (str): Directory to save the graph
+    """
+    # Skip if no data
+    if not users_statistics:
+        print("No user statistics available for creating distribution charts")
+        return
+
+    # Create figure with two subplots side by side
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 8))
+
+    # Extract data for plotting
+    usernames = [stat['username'] for stat in users_statistics]
+    open_issues = [stat['open_issues'] for stat in users_statistics]
+    total_scores = [stat['total_score'] for stat in users_statistics]
+
+    # Calculate total values for percentage calculation
+    total_issues = sum(open_issues)
+    total_score = sum(total_scores)
+
+    # Create labels with both count and percentage for issues
+    issue_labels = [
+        f'{user}\n({issues} issues)\n({issues/total_issues*100:.1f}%)'
+        if issues > 0 else ''
+        for user, issues in zip(usernames, open_issues)
+    ]
+
+    # Create labels with both score and percentage for scores
+    score_labels = [
+        f'{user}\n({score} points)\n({score/total_score*100:.1f}%)'
+        if score > 0 else ''
+        for user, score in zip(usernames, total_scores)
+    ]
+
+    # Remove empty labels and corresponding data
+    issues_data = [(i, l) for i, l in zip(open_issues, issue_labels) if i > 0]
+    scores_data = [(s, l) for s, l in zip(total_scores, score_labels) if s > 0]
+    
+    if issues_data:
+        values_issues, labels_issues = zip(*issues_data)
+    else:
+        values_issues, labels_issues = [], []
+    
+    if scores_data:
+        values_scores, labels_scores = zip(*scores_data)
+    else:
+        values_scores, labels_scores = [], []
+
+    # Plot issues distribution
+    if values_issues:
+        wedges1, texts1, autotexts1 = ax1.pie(
+            values_issues,
+            labels=labels_issues,
+            autopct='',  # We already include percentages in labels
+            startangle=90
+        )
+    ax1.set_title(f'Issues Distribution - Week {end_week}\nTotal Issues: {total_issues}')
+
+    # Plot scores distribution
+    if values_scores:
+        wedges2, texts2, autotexts2 = ax2.pie(
+            values_scores,
+            labels=labels_scores,
+            autopct='',  # We already include percentages in labels
+            startangle=90
+        )
+    ax2.set_title(f'Score Distribution - Week {end_week}\nTotal Score: {total_score}')
+
+    # Add warning text at the bottom of the figure
+    warning_text = (
+        "Note: Issues and scores may be shared among multiple users.\n"
+        "The total sum might exceed the individual issue counts due to shared assignments."
+    )
+    plt.figtext(
+        0.5, 0.02,  # x, y position
+        warning_text,
+        ha='center',
+        color='red',
+        style='italic',
+        bbox=dict(facecolor='white', alpha=0.8, edgecolor='none')
+    )
+
+    # Adjust subplot parameters to make room for the warning text
+    plt.subplots_adjust(bottom=0.15)
+
+    # Save the plot
+    plt.savefig(
+        os.path.join(save_path, f'user_distribution_week_{end_week}.png'),
+        bbox_inches='tight',
+        dpi=300
+    )
+    print(f"User distribution charts saved for week {end_week}")
+    plt.close()
+
 
 def get_unique_users_from_issues(issues_data: list) -> list:
     """
@@ -628,42 +733,6 @@ def get_unique_users_from_issues(issues_data: list) -> list:
         for assignee in issue.get("assignees", []):
             unique_users.add(assignee.get("login"))
     return sorted(list(unique_users))
-
-
-def calculate_issue_score(issue: dict) -> int:
-    """
-    Calculates the priority score for a single issue based on its priority labels.
-
-    Priority scoring:
-    - PRIORITY_LOW: 1 point
-    - PRIORITY_MEDIUM: 2 points
-    - PRIORITY_HIGH: 3 points
-    - PRIORITY_SATANIC: 5 points
-    - No priority label: 0 points
-
-    Args:
-        issue (dict): A single GitHub issue dictionary
-
-    Returns:
-        int: Priority score for the issue
-    """
-    # Priority scores mapping
-    priority_scores = {
-        "PRIORITY_LOW": 1,
-        "PRIORITY_MEDIUM": 2,
-        "PRIORITY_HIGH": 3,
-        "PRIORITY_SATANIC": 5,
-    }
-
-    # Check labels for priority
-    for label in issue.get("labels", []):
-        label_name = label.get("name", "")
-        if label_name in priority_scores:
-            return priority_scores[label_name]
-
-    # Return 0 if no priority label found
-    return 0
-
 
 def create_pdf_report(
     start_week: int, end_week: int, save_path: str = "/workspace/tmp"
@@ -1329,112 +1398,6 @@ def create_user_scores_graph(
     plt.close()
 
 
-def create_user_distribution_charts(
-    users_statistics: list,
-    end_week: int,
-    save_path: str = "/workspace/tmp"
-) -> None:
-    """
-    Creates two side-by-side pie charts showing the distribution of issues and scores among users
-    for the last analyzed week.
-
-    Args:
-        users_statistics (list): List of dictionaries containing user statistics
-        end_week (int): The last week number being analyzed
-        save_path (str): Directory to save the graph
-    """
-    # Skip if no data
-    if not users_statistics:
-        print("No user statistics available for creating distribution charts")
-        return
-
-    # Create figure with two subplots side by side
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 8))
-
-    # Extract data for plotting
-    usernames = [stat['username'] for stat in users_statistics]
-    open_issues = [stat['open_issues'] for stat in users_statistics]
-    total_scores = [stat['total_score'] for stat in users_statistics]
-
-    # Calculate total values for percentage calculation
-    total_issues = sum(open_issues)
-    total_score = sum(total_scores)
-
-    # Create labels with both count and percentage for issues
-    issue_labels = [
-        f'{user}\n({issues} issues)\n({issues/total_issues*100:.1f}%)'
-        if issues > 0 else ''
-        for user, issues in zip(usernames, open_issues)
-    ]
-
-    # Create labels with both score and percentage for scores
-    score_labels = [
-        f'{user}\n({score} points)\n({score/total_score*100:.1f}%)'
-        if score > 0 else ''
-        for user, score in zip(usernames, total_scores)
-    ]
-
-    # Remove empty labels and corresponding data
-    issues_data = [(i, l) for i, l in zip(open_issues, issue_labels) if i > 0]
-    scores_data = [(s, l) for s, l in zip(total_scores, score_labels) if s > 0]
-    
-    if issues_data:
-        values_issues, labels_issues = zip(*issues_data)
-    else:
-        values_issues, labels_issues = [], []
-    
-    if scores_data:
-        values_scores, labels_scores = zip(*scores_data)
-    else:
-        values_scores, labels_scores = [], []
-
-    # Plot issues distribution
-    if values_issues:
-        wedges1, texts1, autotexts1 = ax1.pie(
-            values_issues,
-            labels=labels_issues,
-            autopct='',  # We already include percentages in labels
-            startangle=90
-        )
-    ax1.set_title(f'Issues Distribution - Week {end_week}\nTotal Issues: {total_issues}')
-
-    # Plot scores distribution
-    if values_scores:
-        wedges2, texts2, autotexts2 = ax2.pie(
-            values_scores,
-            labels=labels_scores,
-            autopct='',  # We already include percentages in labels
-            startangle=90
-        )
-    ax2.set_title(f'Score Distribution - Week {end_week}\nTotal Score: {total_score}')
-
-    # Add warning text at the bottom of the figure
-    warning_text = (
-        "Note: Issues and scores may be shared among multiple users.\n"
-        "The total sum might exceed the individual issue counts due to shared assignments."
-    )
-    plt.figtext(
-        0.5, 0.02,  # x, y position
-        warning_text,
-        ha='center',
-        color='red',
-        style='italic',
-        bbox=dict(facecolor='white', alpha=0.8, edgecolor='none')
-    )
-
-    # Adjust subplot parameters to make room for the warning text
-    plt.subplots_adjust(bottom=0.15)
-
-    # Save the plot
-    plt.savefig(
-        os.path.join(save_path, f'user_distribution_week_{end_week}.png'),
-        bbox_inches='tight',
-        dpi=300
-    )
-    print(f"User distribution charts saved for week {end_week}")
-    plt.close()
-
-
 def create_user_priority_levels_graph(
     issues_data: list,
     username: str,
@@ -1455,15 +1418,17 @@ def create_user_priority_levels_graph(
         end_week (int): Ending week number (1-52)
         current_year (int): Year for the analysis
         save_path (str): Directory to save the graph
+        priority_scores (dict): Dictionary containing priority configurations with weights and colors
+            Example: {
+                'PRIORITY_LOW': {'weight': 1, 'color': '#FFFF00'},
+                'PRIORITY_MEDIUM': {'weight': 2, 'color': '#FFA500'},
+                'PRIORITY_HIGH': {'weight': 3, 'color': '#F35325'},
+                'SATANIC': {'weight': 5, 'color': '#8B0000'},
+                'UNCATEGORIZED': {'weight': 0, 'color': '#A9A9A9'}
+            }
     """
     weeks = list(range(start_week, end_week + 1))
-    priority_data = {
-        "PRIORITY_LOW": [],
-        "PRIORITY_MEDIUM": [],
-        "PRIORITY_HIGH": [],
-        "PRIORITY_SATANIC": [],
-        "UNCATEGORIZED": []
-    }
+    priority_data = {priority: [] for priority in priority_scores.keys()}
 
     # Filter issues for this user
     user_issues = [
@@ -1488,24 +1453,25 @@ def create_user_priority_levels_graph(
 
     # Create stacked bar chart on primary axis
     bottom = np.zeros(len(weeks))
-    colors = {
-        "PRIORITY_LOW": "#FFFF00",       # Yellow
-        "PRIORITY_MEDIUM": "#FFA500",    # Orange
-        "PRIORITY_HIGH": "#F35325",      # Red
-        "PRIORITY_SATANIC": "#8B0000",   # Dark Red
-        "UNCATEGORIZED": "#A9A9A9"       # Gray
-    }
 
     for priority, counts in priority_data.items():
-        ax1.bar(weeks, counts, bottom=bottom, label=priority, color=colors[priority], alpha=0.7)
-        bottom += np.array(counts)
-
+        ax1.bar(
+            weeks,
+            counts,
+            bottom=bottom,
+            label=priority,
+            color=priority_scores[priority]['color'],
+            alpha=0.7
+        )
+        
         # Add value labels if count > 0
         for i, count in enumerate(counts):
             if count > 0:
                 # Position the text in the middle of its segment
-                height = bottom[i] - (count / 2)
+                height = bottom[i] + (count / 2)
                 ax1.text(weeks[i], height, str(count), ha='center', va='center')
+        
+        bottom += np.array(counts)
 
     # Set up the primary x-axis (weeks)
     ax1.set_xlim(min(weeks) - 0.5, max(weeks) + 0.5)
@@ -1848,11 +1814,6 @@ if __name__ == "__main__":
                     ]
                     print(tabulate(table_data, headers=headers, tablefmt="grid"))
 
-
-        # --------------------------------------------------------------
-        # After creating all graphs, merge them into PDF
-        create_pdf_report(start_week, end_week)
-
         # --------------------------------------------------------------
         # Create user distribution charts
         if os.getenv("PERFORM_USER_ANALYSIS", "false").lower() == "true":
@@ -1861,9 +1822,14 @@ if __name__ == "__main__":
                 end_week=end_week,
                 save_path="/workspace/tmp"
             )
-
+            
             # Create users PDF report
-            create_users_pdf_report(start_week, end_week)
+            create_users_pdf_report(start_week, end_week)            
+
+        # --------------------------------------------------------------
+        # After creating all graphs, merge them into PDF
+        create_pdf_report(start_week, end_week)
+
 
     elif args.report_type == 'pr-issues':
         pass
