@@ -46,8 +46,9 @@ show_menu() {
     echo "Please select an option:"
     echo "1. Generate PDF reports (User reports and total report)"
     echo "2. Generate/Print PR and Issues report between dates"
-    echo "3. Exit"
-    read -p "Enter your choice (1-3): " choice
+    echo "3. Search PR and Issues by label"
+    echo "4. Exit"
+    read -p "Enter your choice (1-4): " choice
 }
 
 # Update help function
@@ -103,11 +104,27 @@ case $choice in
         python3 scripts/utils.py --report-type pr-issues --start-date "$start_date" --end-date "$end_date"
         ;;
     3)
+        echo "Searching PR and Issues by label..."
+        read -p "Enter label name: " label_name
+        read -p "Enter start date (YYYY-MM-DD) or press enter for today: " start_date
+        read -p "Enter end date (YYYY-MM-DD) or press enter for today: " end_date
+        # Set default dates to today if not specified
+        start_date=${start_date:-$(date +%Y-%m-%d)}
+        end_date=${end_date:-$(date +%Y-%m-%d)}
+        # Validate date format
+        date_regex="^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        if ! [[ $start_date =~ $date_regex ]] || ! [[ $end_date =~ $date_regex ]]; then
+            echo "Error: Dates must be in YYYY-MM-DD format"
+            exit 1
+        fi
+        python3 scripts/utils.py --report-type label-search --label "$label_name" --start-date "$start_date" --end-date "$end_date"
+        ;;
+    4)
         echo "Exiting..."
         exit 0
         ;;
     *)
-        echo "Invalid option. Please select 1, 2, or 3."
+        echo "Invalid option. Please select 1, 2, 3, or 4."
         exit 1
         ;;
 esac

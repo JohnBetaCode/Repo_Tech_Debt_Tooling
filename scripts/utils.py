@@ -75,7 +75,6 @@ def get_github_issues_and_prs_history(
     return issues
 
 
-# Function to save issues to a JSON file
 def save_file(data: list, path: str, filename="file.json"):
     """
     Saves data to a JSON file.
@@ -1630,6 +1629,104 @@ def get_created_issues_details(issues: list, start_date: str, end_date: str) -> 
     }
 
 
+def get_issues_by_label(issues: list, label: str, start_date: str, end_date: str) -> dict:
+    """
+    Gets issues that have a specific label within a date range.
+
+    Args:
+        issues (list): List of GitHub issues
+        label (str): Label to search for
+        start_date (str): Start date in 'YYYY-MM-DD' format
+        end_date (str): End date in 'YYYY-MM-DD' format
+
+    Returns:
+        dict: Dictionary containing count and list of matching issues
+        Example: {
+            'count': 5,
+            'issues': [
+                {'title': 'Issue title', 'created_at': '2024-03-15', 'url': 'https://...', 'state': 'open'},
+                ...
+            ]
+        }
+    """
+    # Convert string dates to datetime objects
+    start_date_obj = datetime.strptime(start_date, "%Y-%m-%d").date()
+    end_date_obj = datetime.strptime(end_date, "%Y-%m-%d").date()
+
+    matching_issues = []
+
+    for issue in issues:
+        # Check if the issue has the specified label
+        if any(l['name'] == label for l in issue.get('labels', [])):
+            # Parse the created_at date
+            created_at_date = datetime.strptime(issue["created_at"], "%Y-%m-%dT%H:%M:%SZ").date()
+
+            # Check if the issue was created within the date range
+            if start_date_obj <= created_at_date <= end_date_obj:
+                matching_issues.append({
+                    'title': issue['title'],
+                    'created_at': created_at_date.strftime("%Y-%m-%d"),
+                    'url': issue['html_url'],
+                    'state': issue['state']
+                })
+
+    return {
+        'count': len(matching_issues),
+        'issues': sorted(matching_issues, key=lambda x: x['created_at'])
+    }
+
+
+def print_dict(dictionary: dict, indent: int = 0, indent_size: int = 2) -> None:
+    """
+    Prints a dictionary with proper indentation, handling nested dictionaries and lists.
+
+    Args:
+        dictionary (dict): Dictionary to print
+        indent (int, optional): Current indentation level. Defaults to 0.
+        indent_size (int, optional): Number of spaces per indentation level. Defaults to 2.
+
+    Example:
+        >>> data = {
+        ...     'name': 'John',
+        ...     'details': {
+        ...         'age': 30,
+        ...         'hobbies': ['reading', 'gaming']
+        ...     }
+        ... }
+        >>> print_dict(data)
+        {
+          'name': 'John'
+          'details': {
+            'age': 30
+            'hobbies': [
+              'reading'
+              'gaming'
+            ]
+          }
+        }
+    """
+    if not isinstance(dictionary, (dict, list)):
+        print(" " * indent + str(dictionary))
+        return
+
+    if isinstance(dictionary, list):
+        print(" " * indent + "[")
+        for item in dictionary:
+            print_dict(item, indent + indent_size)
+        print(" " * indent + "]")
+        return
+
+    print(" " * indent + "{")
+    for key, value in dictionary.items():
+        print(" " * (indent + indent_size) + f"'{key}':", end=" ")
+        if isinstance(value, (dict, list)):
+            print()
+            print_dict(value, indent + indent_size)
+        else:
+            print(repr(value))
+    print(" " * indent + "}")
+
+
 # ----------------------------------------------------------------
 if __name__ == "__main__":
 
@@ -1638,13 +1735,13 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Process GitHub issues based on week numbers"
     )
-    # Set up argument parser
     parser = argparse.ArgumentParser(description="Process GitHub issues and generate reports")
-    parser.add_argument("--report-type", choices=['pdf', 'pr-issues'], help="Type of report to generate")
+    parser.add_argument("--report-type", choices=['pdf', 'pr-issues', 'label-search'], help="Type of report to generate")
     parser.add_argument("--start-week", type=int, help="Starting week number (1-52)")
     parser.add_argument("--end-week", type=int, help="Ending week number (1-52)")
     parser.add_argument("--start-date", help="Start date for PR-Issues report (YYYY-MM-DD)")
     parser.add_argument("--end-date", help="End date for PR-Issues report (YYYY-MM-DD)")
+    parser.add_argument("--label", help="Label to search for")
     args = parser.parse_args()
 
     # --------------------------------------------------------------
@@ -1773,7 +1870,6 @@ if __name__ == "__main__":
                 current_year=current_year,
             )
 
-
         # --------------------------------------------------------------
         # Create score graph only if PERFORM_SCORE_ANALYSIS is true
         if os.getenv("PERFORM_SCORE_ANALYSIS", "false").lower() == "true":
@@ -1785,8 +1881,6 @@ if __name__ == "__main__":
                 priority_scores=priority_scores
             )
 
-
-
         # --------------------------------------------------------------
         # Create priority levels graph only if PERFORM_PRIORITY_ANALYSIS is true
         if os.getenv("PERFORM_PRIORITY_ANALYSIS", "false").lower() == "true":
@@ -1797,7 +1891,6 @@ if __name__ == "__main__":
                 current_year=current_year,
                 priority_scores=priority_scores
             )
-
 
         # --------------------------------------------------------------
         # Perform user analysis only if PERFORM_USER_ANALYSIS is true
@@ -1920,7 +2013,6 @@ if __name__ == "__main__":
         # After creating all graphs, merge them into PDF
         create_pdf_report(start_week, end_week)
 
-
     elif args.report_type == 'pr-issues':
         if not args.start_date or not args.end_date:
             print("Error: start-date and end-date are required for pr-issues report")
@@ -1948,10 +2040,40 @@ if __name__ == "__main__":
                 issue_number = issue['url'].split('/')[-1]
                 print(f"* [{issue['created_at']}] [#{issue_number}]{issue['title']}: {issue['url']}")
 
+    elif args.report_type == 'label-search':
+        
+        args = parser.parse_args()
+
+        if not args.label or not args.start_date or not args.end_date:
+            print("Error: label, start-date, and end-date are required for label search")
+            exit(1)
+
+        # --------------------------------------------------------------
+        # Get prs with specified label
+        labeled_prs = get_issues_by_label(prs_data, args.label, args.start_date, args.end_date)
+        print(f"\n\nPRs with label '{args.label}' between {args.start_date} and {args.end_date}:")
+        print(f"Total count: {labeled_prs['count']}")
+        
+        if labeled_prs['issues']:
+            print("\nMatching PRs list:")
+            for pr in labeled_prs['issues']:
+                pr_number = pr['url'].split('/')[-1]
+                print(f"* [{pr['created_at']}] [#{pr_number}] ({pr['state']}) {pr['title']}: {pr['url']}")
+
+
+        # --------------------------------------------------------------
+        # Get issues with specified label
+        labeled_issues = get_issues_by_label(issues_data, args.label, args.start_date, args.end_date)
+        print(f"\n\nIssues with label '{args.label}' between {args.start_date} and {args.end_date}:")
+        print(f"Total count: {labeled_issues['count']}")
+        
+        if labeled_issues['issues']:
+            print("\nMatching Issues list:")
+            for issue in labeled_issues['issues']:
+                issue_number = issue['url'].split('/')[-1]
+                print(f"* [{issue['created_at']}] [#{issue_number}] ({issue['state']}) {issue['title']}: {issue['url']}")
+
     else:
-        print("Invalid report type. Please use 'pdf' or 'pr-issues'.")
+        print("Invalid report type. Please use 'pdf', 'pr-issues', or 'label-search'.")
         exit(1)
-
-
-
     exit()
