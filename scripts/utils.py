@@ -1644,7 +1644,14 @@ def get_issues_by_label(issues: list, label: str, start_date: str, end_date: str
         Example: {
             'count': 5,
             'issues': [
-                {'title': 'Issue title', 'created_at': '2024-03-15', 'url': 'https://...', 'state': 'open'},
+                {
+                    'title': 'Issue title',
+                    'created_at': '2024-03-15',
+                    'closed_at': '2024-03-20',
+                    'merged_at': '2024-03-20',  # Only for PRs
+                    'url': 'https://...',
+                    'state': 'closed'
+                },
                 ...
             ]
         }
@@ -1663,9 +1670,21 @@ def get_issues_by_label(issues: list, label: str, start_date: str, end_date: str
 
             # Check if the issue was created within the date range
             if start_date_obj <= created_at_date <= end_date_obj:
+                # Parse closed_at date if it exists
+                closed_at = None
+                if issue.get('closed_at'):
+                    closed_at = datetime.strptime(issue["closed_at"], "%Y-%m-%dT%H:%M:%SZ").date().strftime("%Y-%m-%d")
+
+                # Parse merged_at date if it exists (for PRs)
+                merged_at = None
+                if issue.get('pull_request') and issue['pull_request'].get('merged_at'):
+                    merged_at = datetime.strptime(issue["pull_request"]["merged_at"], "%Y-%m-%dT%H:%M:%SZ").date().strftime("%Y-%m-%d")
+
                 matching_issues.append({
                     'title': issue['title'],
                     'created_at': created_at_date.strftime("%Y-%m-%d"),
+                    'closed_at': closed_at,
+                    'merged_at': merged_at,
                     'url': issue['html_url'],
                     'state': issue['state']
                 })
@@ -1725,6 +1744,7 @@ def print_dict(dictionary: dict, indent: int = 0, indent_size: int = 2) -> None:
         else:
             print(repr(value))
     print(" " * indent + "}")
+
 
 
 # ----------------------------------------------------------------
@@ -2058,8 +2078,7 @@ if __name__ == "__main__":
             print("\nMatching PRs list:")
             for pr in labeled_prs['issues']:
                 pr_number = pr['url'].split('/')[-1]
-                print(f"* [{pr['created_at']}] [#{pr_number}] ({pr['state']}) {pr['title']}: {pr['url']}")
-
+                print(f"* [created:{pr['created_at']}][merged_at:{pr['merged_at']}]  [#{pr_number}] ({pr['state']}) {pr['title']}: {pr['url']}")
 
         # --------------------------------------------------------------
         # Get issues with specified label
@@ -2071,7 +2090,7 @@ if __name__ == "__main__":
             print("\nMatching Issues list:")
             for issue in labeled_issues['issues']:
                 issue_number = issue['url'].split('/')[-1]
-                print(f"* [{issue['created_at']}] [#{issue_number}] ({issue['state']}) {issue['title']}: {issue['url']}")
+                print(f"* [created:{issue['created_at']}][closed-at:{issue['closed_at']}] [#{issue_number}] ({issue['state']}) {issue['title']}: {issue['url']}")
 
     else:
         print("Invalid report type. Please use 'pdf', 'pr-issues', or 'label-search'.")
