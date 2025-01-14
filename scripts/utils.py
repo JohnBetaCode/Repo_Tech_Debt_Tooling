@@ -342,12 +342,19 @@ def create_issues_activity_graph(
     save_path: str = "/workspace/tmp",
 ) -> None:
 
-    # Collect data for plotting
-    open_issues_data = []
-    created_issues_data = []
-    closed_issues_data = []
+    # Get indices from headers
+    week_idx = headers.index("Week")
+    open_idx = headers.index("Open Issues")
+    created_idx = headers.index("Created Issues")
+    closed_idx = headers.index("Closed Issues")
 
-    
+    # Extract data for plotting
+    weeks = [int(row[week_idx].split('-')[1]) for row in data]  # Extract week number after year (YY-WW)
+    open_issues_data = [row[open_idx] for row in data]
+    created_issues_data = [row[created_idx] for row in data]
+    closed_issues_data = [row[closed_idx] for row in data]
+
+    print(weeks)
 
     # Create the visualization
     plt.figure(figsize=(12, 6))
@@ -1866,8 +1873,6 @@ if __name__ == "__main__":
         if os.getenv("PRINT_LOGS_ANALYSIS_RESULTS", "false").lower() == "true":
             print("\nWeekly Issues Summary:")
             print(tabulate(table_data, headers=headers, tablefmt="grid"))
-
-        print(table_data    )
 
         # --------------------------------------------------------------
         # Create activity graph only if PERFORM_SCORE_ANALYSIS is true
