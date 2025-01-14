@@ -1756,9 +1756,7 @@ if __name__ == "__main__":
         description="Process GitHub issues based on week numbers"
     )
     parser = argparse.ArgumentParser(description="Process GitHub issues and generate reports")
-    parser.add_argument("--report-type", choices=['pdf', 'pr-issues', 'label-search'], help="Type of report to generate")
-    parser.add_argument("--start-week", type=int, help="Starting week number (1-52)")
-    parser.add_argument("--end-week", type=int, help="Ending week number (1-52)")
+    parser.add_argument("--report-type", choices=['pdf', 'pr-issues', 'label-search', 'pr-rejections'], help="Type of report to generate")
     parser.add_argument("--start-date", help="Start date for PR-Issues report (YYYY-MM-DD)")
     parser.add_argument("--end-date", help="End date for PR-Issues report (YYYY-MM-DD)")
     parser.add_argument("--label", help="Label to search for")
@@ -1802,30 +1800,12 @@ if __name__ == "__main__":
     if args.report_type == 'pdf':
 
         # --------------------------------------------------------------
-        # Validate week numbers
-        
-        # Get current year and week
-        today = date.today()
-        current_year = today.year
-        current_week = today.isocalendar()[1]
-
-        # Set default values if arguments are not provided
-        start_week = args.start_week if args.start_week is not None else 1
-        end_week = args.end_week if args.end_week is not None else current_week
-
-
-        if not (1 <= start_week <= 52 and 1 <= end_week <= 52):
-            print("Week numbers must be between 1 and 52")
+        if not args.start_date or not args.end_date:
+            print("Error: start-date and end-date are required for pr-issues report")
             exit(1)
-        if start_week > end_week:
-            print("Start week must be less than or equal to end week")
-            exit(1)
-
-        start_date = get_week_start_date(current_year, start_week)
-        end_date = get_week_end_date(current_year, end_week)
 
         print(
-            f"Analyzing issues from Week {start_week} ({start_date}) to Week {end_week} ({end_date})"
+            f"Analyzing issues from {args.start_date} to {args.end_date}"
         )
 
         # --------------------------------------------------------------
@@ -1844,37 +1824,74 @@ if __name__ == "__main__":
         table_data = []
         headers = ["Week", "Open Issues", "Created Issues", "Closed Issues", "Score"]
         
-        for week in range(start_week, end_week + 1):
-            # ----------------------------------------------------------
-            # Get issues opened up to date
-            open_issues_up_to_date = get_open_issues_up_to_date(
-                issues=issues_data, target_date=get_week_end_date(current_year, week)
-            )
+        # Get list of years between start and end date
+        start_date = datetime.strptime(args.start_date, "%Y-%m-%d").date()
+        end_date = datetime.strptime(args.end_date, "%Y-%m-%d").date()
+        years = range(start_date.year, end_date.year + 1)
 
-            # Get issues created and closed during this week
-            week_start = get_week_start_date(current_year, week)
-            week_end = get_week_end_date(current_year, week)
-            issues_created_this_week = get_issues_created_between_dates(
-                issues=issues_data, start_date=week_start, end_date=week_end
-            )
-            issues_closed_this_week = get_issues_closed_between_dates(
-                issues=issues_data, start_date=week_start, end_date=week_end
-            )
+        print(f"Processing data for years: {list(years)}")
 
-            categories = categorize_issues_by_priority(
-                issues=issues_closed_this_week, priority_scores=priority_scores)
-                        
-            total_score = sum(cat["total_score"] for cat in categories.values())
-            
-            # Add row to table data
-            table_data.append([
-                week,
-                len(open_issues_up_to_date),
-                len(issues_created_this_week),
-                len(issues_closed_this_week),
-                total_score
-            ])
+        for year in years:
+            # Calculate start_week and end_week for current year
+            if year == start_date.year:
+                # For first year, start from the week containing start_date
+                start_week = start_date.isocalendar()[1]
+            else:
+                # For subsequent years, start from week 1
+                start_week = 1
 
+            if year == end_date.year:
+                # For last year, end at the week containing end_date
+                end_week = end_date.isocalendar()[1]
+            elif year == start_date.year:
+                # For the first year (if not the same as end year), go until last week of that year
+                # Go backwards from Dec 31 until we find the last week that belongs to this year
+                dec31 = date(year, 12, 31)
+                while dec31.isocalendar()[0] != year:
+                    dec31 = dec31 - timedelta(days=1)
+                end_week = dec31.isocalendar()[1]
+            else:
+                # For middle years (if any), go until last week of year
+                # Same logic as above
+                dec31 = date(year, 12, 31)
+                while dec31.isocalendar()[0] != year:
+                    dec31 = dec31 - timedelta(days=1)
+                end_week = dec31.isocalendar()[1]
+
+            print(f"Processing year {year} from week {start_week} to {end_week}")
+
+            for week in range(start_week, end_week + 1):
+                
+                # ----------------------------------------------------------
+                # Get issues opened up to date
+                open_issues_up_to_date = get_open_issues_up_to_date(
+                    issues=issues_data, target_date=get_week_end_date(year, week)
+                )
+
+                # Get issues created and closed during this week
+                week_start = get_week_start_date(year, week)
+                week_end = get_week_end_date(year, week)
+                issues_created_this_week = get_issues_created_between_dates(
+                    issues=issues_data, start_date=week_start, end_date=week_end
+                )
+                issues_closed_this_week = get_issues_closed_between_dates(
+                    issues=issues_data, start_date=week_start, end_date=week_end
+                )
+
+                categories = categorize_issues_by_priority(
+                    issues=issues_closed_this_week, priority_scores=priority_scores)
+                            
+                total_score = sum(cat["total_score"] for cat in categories.values())
+                
+                # Add row to table data
+                table_data.append([
+                    f"{str(year)[-2:]}-{str(week).zfill(2)}",
+                    len(open_issues_up_to_date),
+                    len(issues_created_this_week),
+                    len(issues_closed_this_week),
+                    total_score
+                ])
+                
         # Print table only if PRINT_LOGS_ANALYSIS_RESULTS is true
         if os.getenv("PRINT_LOGS_ANALYSIS_RESULTS", "false").lower() == "true":
             print("\nWeekly Issues Summary:")
@@ -1889,6 +1906,10 @@ if __name__ == "__main__":
                 end_week=end_week,
                 current_year=current_year,
             )
+
+
+        exit()
+
 
         # --------------------------------------------------------------
         # Create score graph only if PERFORM_SCORE_ANALYSIS is true
@@ -2092,7 +2113,12 @@ if __name__ == "__main__":
                 issue_number = issue['url'].split('/')[-1]
                 print(f"* [created:{issue['created_at']}][closed-at:{issue['closed_at']}] [#{issue_number}] ({issue['state']}) {issue['title']}: {issue['url']}")
 
+    elif args.report_type == 'pr-rejections':
+        if not args.start_date or not args.end_date:
+            print("Error: start-date and end-date are required for pr-rejections report")
+            exit(1)
+
     else:
-        print("Invalid report type. Please use 'pdf', 'pr-issues', or 'label-search'.")
+        print("Invalid report type. Please use 'pdf', 'pr-issues', 'label-search', or 'pr-rejections'.")
         exit(1)
     exit()
