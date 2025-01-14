@@ -337,47 +337,17 @@ def categorize_issues_by_priority(issues: list, priority_scores: dict) -> dict:
 
 
 def create_issues_activity_graph(
-    issues_data: list,
-    start_week: int,
-    end_week: int,
-    current_year: int,
+    data: list,
+    headers: list,
     save_path: str = "/workspace/tmp",
 ) -> None:
-    """
-    Creates and saves a graph showing weekly GitHub issues activity.
-    Uses bars for created/closed issues and line for open issues.
 
-    Args:
-        issues_data (list): List of GitHub issues
-        start_week (int): Starting week number (1-52)
-        end_week (int): Ending week number (1-52)
-        current_year (int): Year for the analysis
-        save_path (str, optional): Directory to save the graph. Defaults to "/workspace/tmp"
-
-    Returns:
-        None: Saves the graph as 'issues_activity.png'
-    """
     # Collect data for plotting
-    weeks = list(range(start_week, end_week + 1))
     open_issues_data = []
     created_issues_data = []
     closed_issues_data = []
 
-    for week in weeks:
-        week_start = get_week_start_date(current_year, week)
-        week_end = get_week_end_date(current_year, week)
-
-        open_count = len(get_open_issues_up_to_date(issues_data, week_end))
-        created_count = len(
-            get_issues_created_between_dates(issues_data, week_start, week_end)
-        )
-        closed_count = len(
-            get_issues_closed_between_dates(issues_data, week_start, week_end)
-        )
-
-        open_issues_data.append(open_count)
-        created_issues_data.append(created_count)
-        closed_issues_data.append(closed_count)
+    
 
     # Create the visualization
     plt.figure(figsize=(12, 6))
@@ -1897,14 +1867,14 @@ if __name__ == "__main__":
             print("\nWeekly Issues Summary:")
             print(tabulate(table_data, headers=headers, tablefmt="grid"))
 
+        print(table_data    )
+
         # --------------------------------------------------------------
         # Create activity graph only if PERFORM_SCORE_ANALYSIS is true
         if os.getenv("PERFORM_QUANTITATIVE_ANALYSIS", "false").lower() == "true":
             create_issues_activity_graph(
-                issues_data=issues_data,
-                start_week=start_week,
-                end_week=end_week,
-                current_year=current_year,
+                data=table_data,
+                headers=headers
             )
 
 
