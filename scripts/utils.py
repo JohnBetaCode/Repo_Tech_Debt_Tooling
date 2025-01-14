@@ -349,20 +349,19 @@ def create_issues_activity_graph(
     closed_idx = headers.index("Closed Issues")
 
     # Extract data for plotting
-    weeks = [int(row[week_idx].split('-')[1]) for row in data]  # Extract week number after year (YY-WW)
+    weeks = [row[week_idx] for row in data]  # Keep original week format (YY-WW)
     open_issues_data = [row[open_idx] for row in data]
     created_issues_data = [row[created_idx] for row in data]
     closed_issues_data = [row[closed_idx] for row in data]
-
-    print(weeks)
 
     # Create the visualization
     plt.figure(figsize=(12, 6))
 
     # Plot bars for created and closed issues
     bar_width = 0.35
-    bar_positions_created = [x - bar_width / 2 for x in weeks]
-    bar_positions_closed = [x + bar_width / 2 for x in weeks]
+    x_positions = range(len(weeks))  # Use simple numeric positions for x-axis
+    bar_positions_created = [x - bar_width / 2 for x in x_positions]
+    bar_positions_closed = [x + bar_width / 2 for x in x_positions]
 
     plt.bar(
         bar_positions_created,
@@ -383,7 +382,7 @@ def create_issues_activity_graph(
 
     # Plot line for open issues
     plt.plot(
-        weeks,
+        x_positions,
         open_issues_data,
         "b:",
         label="# Open Issues at the end of the week",
@@ -397,7 +396,7 @@ def create_issues_activity_graph(
     for i, value in enumerate(closed_issues_data):
         plt.text(bar_positions_closed[i], value, str(value), ha="center", va="bottom")
     for i, value in enumerate(open_issues_data):
-        plt.text(weeks[i], value, str(value), ha="center", va="bottom")
+        plt.text(x_positions[i], value, str(value), ha="center", va="bottom")
 
     plt.title("GitHub Issues Activity by Week")
     plt.xlabel("Week Number")
@@ -405,9 +404,9 @@ def create_issues_activity_graph(
     plt.grid(True, linestyle="--", alpha=0.7)
     plt.legend()
 
-    # Force x-axis to show all weeks
-    plt.xticks(weeks)  # Add this line to show all week numbers
-    plt.xlim(min(weeks) - 0.5, max(weeks) + 0.5)  # Add some padding on sides
+    # Set x-axis ticks and labels
+    plt.xticks(x_positions, weeks)  # Use original week format for labels
+    plt.xlim(-0.5, len(weeks) - 0.5)  # Add some padding on sides
 
     # Save the plot
     plt.savefig(
