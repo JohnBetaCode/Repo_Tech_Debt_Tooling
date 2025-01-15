@@ -2170,6 +2170,9 @@ if __name__ == "__main__":
             print("No label requirements defined in label_check.yaml")
             exit(1)
 
+        # Remove rejection labels from PRs
+        label_config['prs'].pop('rejection', None)
+
         # Get issues and PRs within date range
         issues_in_range = get_issues_created_between_dates(issues_data, args.start_date, args.end_date)
         prs_in_range = get_issues_created_between_dates(prs_data, args.start_date, args.end_date)
