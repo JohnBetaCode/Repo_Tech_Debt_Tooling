@@ -1149,8 +1149,9 @@ def create_user_issues_graph(
 
     # Plot bars for created and closed issues
     bar_width = 0.35
-    bar_positions_created = [x - bar_width/2 for x in weeks]
-    bar_positions_closed = [x + bar_width/2 for x in weeks]
+    x_positions = range(len(weeks))  # Use numeric positions for x-axis
+    bar_positions_created = [x - bar_width/2 for x in x_positions]
+    bar_positions_closed = [x + bar_width/2 for x in x_positions]
 
     plt.bar(
         bar_positions_created,
@@ -1171,7 +1172,7 @@ def create_user_issues_graph(
 
     # Plot line for open issues
     plt.plot(
-        weeks,
+        x_positions,  # Use numeric positions for line plot
         open_issues,
         "b:",
         label="Open Issues at week end",
@@ -1185,7 +1186,7 @@ def create_user_issues_graph(
     for i, value in enumerate(closed_issues):
         plt.text(bar_positions_closed[i], value, str(value), ha='center', va='bottom')
     for i, value in enumerate(open_issues):
-        plt.text(weeks[i], value, str(value), ha='center', va='bottom')
+        plt.text(x_positions[i], value, str(value), ha='center', va='bottom')
 
     plt.title(f"GitHub Issues Activity for {username}")
     plt.xlabel("Week Number")
@@ -1193,9 +1194,9 @@ def create_user_issues_graph(
     plt.grid(True, linestyle="--", alpha=0.7)
     plt.legend()
 
-    # Force x-axis to show all weeks
-    plt.xticks(weeks)
-    plt.xlim(min(weeks) - 0.5, max(weeks) + 0.5)
+    # Set x-axis ticks and labels
+    plt.xticks(x_positions, weeks)  # Use original week labels
+    plt.xlim(-0.5, len(weeks) - 0.5)
 
     # Save the plot
     plt.savefig(
@@ -1299,8 +1300,9 @@ def create_user_scores_graph(
 
     # Plot bars for created and closed scores
     bar_width = 0.35
-    bar_positions_created = [x - bar_width/2 for x in weeks]
-    bar_positions_closed = [x + bar_width/2 for x in weeks]
+    x_positions = range(len(weeks))  # Use numeric positions for x-axis
+    bar_positions_created = [x - bar_width/2 for x in x_positions]
+    bar_positions_closed = [x + bar_width/2 for x in x_positions]
 
     plt.bar(
         bar_positions_created,
@@ -1321,7 +1323,7 @@ def create_user_scores_graph(
 
     # Plot line for open scores
     plt.plot(
-        weeks,
+        x_positions,  # Use numeric positions for line plot
         open_scores,
         "b:",
         label="Open Issues Score at week end",
@@ -1335,7 +1337,7 @@ def create_user_scores_graph(
     for i, value in enumerate(closed_scores):
         plt.text(bar_positions_closed[i], value, str(value), ha='center', va='bottom')
     for i, value in enumerate(open_scores):
-        plt.text(weeks[i], value, str(value), ha='center', va='bottom')
+        plt.text(x_positions[i], value, str(value), ha='center', va='bottom')
 
     plt.title(f"GitHub Issues Priority Scores for {username}")
     plt.xlabel("Week Number")
@@ -1343,9 +1345,9 @@ def create_user_scores_graph(
     plt.grid(True, linestyle="--", alpha=0.7)
     plt.legend()
 
-    # Force x-axis to show all weeks
-    plt.xticks(weeks)
-    plt.xlim(min(weeks) - 0.5, max(weeks) + 0.5)
+    # Set x-axis ticks and labels
+    plt.xticks(x_positions, weeks)  # Use original week labels
+    plt.xlim(-0.5, len(weeks) - 0.5)
 
     # Save the plot
     plt.savefig(
@@ -1958,15 +1960,13 @@ if __name__ == "__main__":
                     save_path=user_path
                 )
                 
-                continue # DELETE WHEN DONE
-                            
+
                 # Create score graph for the user
                 create_user_scores_graph(
                     user_weekly_data=user_weekly_scores,
                     username=user,
                     save_path=user_path
                 )
-
 
 
                 # Add the new priority levels graph
@@ -1980,6 +1980,9 @@ if __name__ == "__main__":
                     priority_scores=priority_scores
                 )
                 
+                continue # DELETE WHEN DONE
+                            
+
                 # Print user statistics if logging is enabled
                 if os.getenv("PRINT_LOGS_ANALYSIS_RESULTS", "false").lower() == "true":
                     print(f"\nWeekly statistics for {user}:")
