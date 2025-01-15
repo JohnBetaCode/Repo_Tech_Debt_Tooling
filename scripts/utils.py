@@ -1362,9 +1362,8 @@ def create_user_scores_graph(
 def create_user_priority_levels_graph(
     issues_data: list,
     username: str,
-    start_week: int,
-    end_week: int,
-    current_year: int,
+    start_date: str,
+    end_date: str,
     save_path: str,
     priority_scores: dict,
 ) -> None:
@@ -1375,9 +1374,8 @@ def create_user_priority_levels_graph(
     Args:
         issues_data (list): List of GitHub issues
         username (str): GitHub username
-        start_week (int): Starting week number (1-52)
-        end_week (int): Ending week number (1-52)
-        current_year (int): Year for the analysis
+        start_date (str): Start date in 'YYYY-MM-DD' format
+        end_date (str): End date in 'YYYY-MM-DD' format
         save_path (str): Directory to save the graph
         priority_scores (dict): Dictionary containing priority configurations with weights and colors
             Example: {
@@ -1388,7 +1386,7 @@ def create_user_priority_levels_graph(
                 'UNCATEGORIZED': {'weight': 0, 'color': '#A9A9A9'}
             }
     """
-    weeks = list(range(start_week, end_week + 1))
+    weeks = list(range(start_date.year, end_date.year + 1))
     priority_data = {priority: [] for priority in priority_scores.keys()}
 
     # Filter issues for this user
@@ -1399,7 +1397,7 @@ def create_user_priority_levels_graph(
 
     # Collect data for each week
     for week in weeks:
-        week_end = get_week_end_date(current_year, week)
+        week_end = get_week_end_date(week, 52)
         open_issues = get_open_issues_up_to_date(user_issues, week_end)
         categories = categorize_issues_by_priority(open_issues, priority_scores)
         
@@ -1445,7 +1443,7 @@ def create_user_priority_levels_graph(
     
     # Get unique months and their positions
     for week in weeks:
-        week_start = get_week_start_date(current_year, week)
+        week_start = get_week_start_date(week, 1)
         month_name = week_start.strftime("%B")
         month_pos = week
         
@@ -1969,13 +1967,12 @@ if __name__ == "__main__":
                 )
 
 
-                # Add the new priority levels graph
+                # Create the new priority levels graph
                 create_user_priority_levels_graph(
                     issues_data=issues_data,
                     username=user,
-                    start_week=start_week,
-                    end_week=end_week,
-                    current_year=current_year,
+                    start_date=args.start_date,
+                    end_date=args.end_date,
                     save_path=user_path,
                     priority_scores=priority_scores
                 )
