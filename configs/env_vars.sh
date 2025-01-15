@@ -4,7 +4,7 @@
 export GENERATE_REPORT_CLEANUP=false
 
 # Toggle for analyzing user-related metrics
-export PERFORM_USER_ANALYSIS=false
+export PERFORM_USER_ANALYSIS=true
 
 # Toggle for analyzing score-related metrics
 export PERFORM_SCORE_ANALYSIS=true

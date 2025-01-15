@@ -1068,29 +1068,29 @@ def create_users_pdf_report(
 def get_user_weekly_issues(
     issues_data: list,
     username: str,
-    start_week: int,
-    end_week: int,
-    current_year: int
+    start_date: str,
+    end_date: str
 ) -> list:
     """
-    Gets the number of issues assigned to a user for each week.
+    Gets the number of issues assigned to a user for each week between start_date and end_date.
 
     Args:
         issues_data (list): List of GitHub issues
         username (str): GitHub username to analyze
-        start_week (int): Starting week number (1-52)
-        end_week (int): Ending week number (1-52)
-        current_year (int): Year for the analysis
+        start_date (str): Start date in 'YYYY-MM-DD' format
+        end_date (str): End date in 'YYYY-MM-DD' format
 
     Returns:
         list: List of dictionaries containing week number and issue counts
         Example: [
-            {'week': 1, 'open_issues': 5, 'created_issues': 2, 'closed_issues': 1},
-            {'week': 2, 'open_issues': 6, 'created_issues': 3, 'closed_issues': 2},
+            {'week': '23-01', 'open_issues': 5, 'created_issues': 2, 'closed_issues': 1},
+            {'week': '23-02', 'open_issues': 6, 'created_issues': 3, 'closed_issues': 2},
             ...
         ]
     """
-    weekly_data = []
+    # Convert string dates to datetime objects
+    start_date_obj = datetime.strptime(start_date, "%Y-%m-%d").date()
+    end_date_obj = datetime.strptime(end_date, "%Y-%m-%d").date()
 
     # Filter issues assigned to the user
     user_issues = [
@@ -1098,27 +1098,28 @@ def get_user_weekly_issues(
         if any(assignee.get('login') == username for assignee in issue.get('assignees', []))
     ]
 
-    for week in range(start_week, end_week + 1):
-        week_start = get_week_start_date(current_year, week)
-        week_end = get_week_end_date(current_year, week)
+    weekly_data = []
+    current_date = start_date_obj
 
-        # Get issues opened up to date
-        open_issues = get_open_issues_up_to_date(user_issues, week_end)
+    while current_date <= end_date_obj:
+        year, week, _ = current_date.isocalendar()
+        week_start = get_week_start_date(year, week)
+        week_end = get_week_end_date(year, week)
         
-        # Get issues created and closed during this week
-        created_issues = get_issues_created_between_dates(
-            user_issues, week_start, week_end
-        )
-        closed_issues = get_issues_closed_between_dates(
-            user_issues, week_start, week_end
-        )
+        # Get issues for each category
+        open_issues = get_open_issues_up_to_date(user_issues, week_end)
+        created_issues = get_issues_created_between_dates(user_issues, week_start, week_end)
+        closed_issues = get_issues_closed_between_dates(user_issues, week_start, week_end)
 
         weekly_data.append({
-            'week': week,
+            'week': f"{str(year)[-2:]}-{str(week).zfill(2)}",
             'open_issues': len(open_issues),
             'created_issues': len(created_issues),
             'closed_issues': len(closed_issues)
         })
+        
+        # Move to next week
+        current_date += timedelta(days=7)
 
     return weekly_data
 
@@ -1209,30 +1210,31 @@ def create_user_issues_graph(
 def get_user_weekly_scores(
     issues_data: list,
     username: str,
-    start_week: int,
-    end_week: int,
-    current_year: int,
+    start_date: str,
+    end_date: str,
     priority_scores: dict,
 ) -> list:
     """
-    Gets the priority scores of issues assigned to a user for each week.
+    Gets the priority scores of issues assigned to a user for each week between start_date and end_date.
 
     Args:
         issues_data (list): List of GitHub issues
         username (str): GitHub username to analyze
-        start_week (int): Starting week number (1-52)
-        end_week (int): Ending week number (1-52)
-        current_year (int): Year for the analysis
+        start_date (str): Start date in 'YYYY-MM-DD' format
+        end_date (str): End date in 'YYYY-MM-DD' format
+        priority_scores (dict): Dictionary containing priority configurations with weights and colors
 
     Returns:
         list: List of dictionaries containing week number and issue scores
         Example: [
-            {'week': 1, 'open_score': 5, 'created_score': 2, 'closed_score': 1},
-            {'week': 2, 'open_score': 6, 'created_score': 3, 'closed_score': 2},
+            {'week': '23-01', 'open_score': 5, 'created_score': 2, 'closed_score': 1},
+            {'week': '23-02', 'open_score': 6, 'created_score': 3, 'closed_score': 2},
             ...
         ]
     """
-    weekly_data = []
+    # Convert string dates to datetime objects
+    start_date_obj = datetime.strptime(start_date, "%Y-%m-%d").date()
+    end_date_obj = datetime.strptime(end_date, "%Y-%m-%d").date()
 
     # Filter issues assigned to the user
     user_issues = [
@@ -1240,10 +1242,14 @@ def get_user_weekly_scores(
         if any(assignee.get('login') == username for assignee in issue.get('assignees', []))
     ]
 
-    for week in range(start_week, end_week + 1):
-        week_start = get_week_start_date(current_year, week)
-        week_end = get_week_end_date(current_year, week)
+    weekly_data = []
+    current_date = start_date_obj
 
+    while current_date <= end_date_obj:
+        year, week, _ = current_date.isocalendar()
+        week_start = get_week_start_date(year, week)
+        week_end = get_week_end_date(year, week)
+        
         # Get issues for each category
         open_issues = get_open_issues_up_to_date(user_issues, week_end)
         created_issues = get_issues_created_between_dates(user_issues, week_start, week_end)
@@ -1255,16 +1261,15 @@ def get_user_weekly_scores(
         closed_categories = categorize_issues_by_priority(closed_issues, priority_scores)
 
         # Sum up total scores
-        open_score = sum(cat["total_score"] for cat in open_categories.values())
-        created_score = sum(cat["total_score"] for cat in created_categories.values())
-        closed_score = sum(cat["total_score"] for cat in closed_categories.values())
-
         weekly_data.append({
-            'week': week,
-            'open_score': open_score,
-            'created_score': created_score,
-            'closed_score': closed_score
+            'week': f"{str(year)[-2:]}-{str(week).zfill(2)}",
+            'open_score': sum(cat["total_score"] for cat in open_categories.values()),
+            'created_score': sum(cat["total_score"] for cat in created_categories.values()),
+            'closed_score': sum(cat["total_score"] for cat in closed_categories.values())
         })
+        
+        # Move to next week
+        current_date += timedelta(days=7)
 
     return weekly_data
 
@@ -1920,24 +1925,21 @@ if __name__ == "__main__":
                 user_weekly_data = get_user_weekly_issues(
                     issues_data=issues_data,
                     username=user,
-                    start_week=start_week,
-                    end_week=end_week,
-                    current_year=current_year
+                    start_date=args.start_date,
+                    end_date=args.end_date
                 )
                 
-                continue # DELETE WHEN DONE
 
-                
                 # Get weekly scores data for the user
                 user_weekly_scores = get_user_weekly_scores(
                     issues_data=issues_data,
                     username=user,
-                    start_week=start_week,
-                    end_week=end_week,
-                    current_year=current_year,
+                    start_date=args.start_date,
+                    end_date=args.end_date,
                     priority_scores=priority_scores
                 )
                 
+
                 # Collect total statistics for this user
                 total_created = sum(week['created_issues'] for week in user_weekly_data)
                 total_closed = sum(week['closed_issues'] for week in user_weekly_data)
@@ -1956,13 +1958,17 @@ if __name__ == "__main__":
                     save_path=user_path
                 )
                 
+                continue # DELETE WHEN DONE
+                            
                 # Create score graph for the user
                 create_user_scores_graph(
                     user_weekly_data=user_weekly_scores,
                     username=user,
                     save_path=user_path
                 )
-                
+
+
+
                 # Add the new priority levels graph
                 create_user_priority_levels_graph(
                     issues_data=issues_data,
