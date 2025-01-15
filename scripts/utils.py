@@ -88,25 +88,33 @@ def save_file(data: list, path: str, filename="file.json"):
         json.dump(data, f, indent=4)
 
 
-def load_issues_from_file(path: str, filename: str):
+def load_issues_from_file(path: str, filename: str, max_age_days: int = 5):
     """
-    Loads issues from a JSON file if it exists.
-    Returns an empty list if the file does not exist.
+    Loads issues from a JSON file if it exists and is not older than max_age_days.
+    Returns an empty list if the file does not exist or is too old.
 
     Parameters:
-        filename (str): The name of the file to load issues from.
+        path (str): The path to the directory containing the file
+        filename (str): The name of the file to load issues from
+        max_age_days (int): Maximum age of the file in days before considering it stale
 
     Returns:
-        list: A list of issues loaded from the file or an empty list if file doesn't exist.
+        list: A list of issues loaded from the file or an empty list if file doesn't exist/is too old
     """
     file_path = os.path.join(path, filename)
     if os.path.isfile(file_path):
-        with open(file_path, "r") as f:
-            issues = json.load(f)
-        print(f"Issues loaded from {file_path}")
-        return issues
+        # Check file age
+        file_age = (datetime.now() - datetime.fromtimestamp(os.path.getmtime(file_path))).days
+        if file_age <= max_age_days:
+            with open(file_path, "r") as f:
+                issues = json.load(f)
+            print(f"Issues loaded from {file_path} (file age: {file_age} days)")
+            return issues
+        else:
+            print(f"{file_path} is {file_age} days old (max age: {max_age_days} days). Will download fresh data.")
+            return []
     else:
-        print(f"{file_path} does not exist. Returning an empty list.")
+        print(f"{file_path} does not exist. Will download fresh data.")
         return []
 
 
@@ -1725,7 +1733,6 @@ def print_dict(dictionary: dict, indent: int = 0, indent_size: int = 2) -> None:
     print(" " * indent + "}")
 
 
-
 # ----------------------------------------------------------------
 if __name__ == "__main__":
 
@@ -1751,7 +1758,7 @@ if __name__ == "__main__":
 
     # --------------------------------------------------------------
     # Check if the file exist, otherwise load it
-    data = load_issues_from_file(path="/workspace/tmp", filename="issues.json")
+    data = load_issues_from_file(path="/workspace/tmp", filename="issues.json", max_age_days=5)
     if not len(data):
         print("Downloading data from Github API ...")
         data = get_github_issues_and_prs_history(
