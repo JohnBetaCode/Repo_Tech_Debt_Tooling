@@ -13,6 +13,8 @@ issues:
   documentation:
     - doc_no-req
     - doc_done
+  type:
+    - stale
 prs:
   priority:
     - PRIORITY_LOW
@@ -29,6 +31,7 @@ prs:
     - tech_check
     - qa_check
     - in_progress
+    - stale
   rejection:
     - Rejected_Checks
     - Rejected_Traceback
