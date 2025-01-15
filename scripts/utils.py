@@ -1733,6 +1733,34 @@ def print_dict(dictionary: dict, indent: int = 0, indent_size: int = 2) -> None:
     print(" " * indent + "}")
 
 
+def check_required_labels(item: dict, required_labels: dict, item_type: str) -> dict:
+    """
+    Checks if an item (issue or PR) has at least one label from each required category.
+
+    Args:
+        item (dict): The issue or PR to check
+        required_labels (dict): Dictionary of required label categories and their values
+        item_type (str): Either 'issues' or 'prs'
+
+    Returns:
+        dict: Dictionary containing missing label categories
+        Example: {
+            'type': True,  # Has at least one label from this category
+            'priority': False,  # Missing labels from this category
+            'documentation': True
+        }
+    """
+    item_labels = {label['name'] for label in item.get('labels', [])}
+    results = {}
+    
+    for category, allowed_labels in required_labels[item_type].items():
+        # Check if any of the allowed labels for this category are present
+        has_required_label = any(label in item_labels for label in allowed_labels)
+        results[category] = has_required_label
+    
+    return results
+
+
 # ----------------------------------------------------------------
 if __name__ == "__main__":
 
@@ -2107,7 +2135,90 @@ if __name__ == "__main__":
             print("Error: start-date and end-date are required for pr-rejections report")
             exit(1)
 
+    elif args.report_type == 'label-check':
+        if not args.start_date or not args.end_date:
+            print("Error: start-date and end-date are required for label check")
+            exit(1)
+
+        # Load labels configuration
+        try:
+            with open('configs/label_check.yaml', 'r') as file:
+                label_config = yaml.safe_load(file)
+                required_labels = label_config.get('required_labels', [])
+        except Exception as e:
+            print(f"Error loading label_check.yaml: {str(e)}")
+            exit(1)
+
+        if not required_labels:
+            print("No labels defined in label_check.yaml")
+            exit(1)
+
+        # Get issues and PRs within date range
+        issues_in_range = get_issues_created_between_dates(issues_data, args.start_date, args.end_date)
+        prs_in_range = get_issues_created_between_dates(prs_data, args.start_date, args.end_date)
+
+        # Check issues
+        print(f"\nChecking issues created between {args.start_date} and {args.end_date}:")
+        issues_with_missing_labels = []
+        for issue in issues_in_range:
+            results = check_required_labels(issue, label_config, 'issues')
+            missing_categories = [cat for cat, has_label in results.items() if not has_label]
+            
+            if missing_categories:
+                issue_number = issue['html_url'].split('/')[-1]
+                issues_with_missing_labels.append({
+                    'number': issue_number,
+                    'title': issue['title'],
+                    'url': issue['html_url'],
+                    'missing': missing_categories
+                })
+
+        # Check PRs
+        print(f"\nChecking PRs created between {args.start_date} and {args.end_date}:")
+        prs_with_missing_labels = []
+        for pr in prs_in_range:
+            results = check_required_labels(pr, label_config, 'prs')
+            missing_categories = [cat for cat, has_label in results.items() if not has_label]
+            
+            if missing_categories:
+                pr_number = pr['html_url'].split('/')[-1]
+                prs_with_missing_labels.append({
+                    'number': pr_number,
+                    'title': pr['title'],
+                    'url': pr['html_url'],
+                    'missing': missing_categories
+                })
+
+        # Print results
+        if issues_with_missing_labels:
+            print("\nIssues missing required labels:")
+            for issue in issues_with_missing_labels:
+                print(f"* [#{issue['number']}] {issue['title']}")
+                print(f"  URL: {issue['url']}")
+                print(f"  Missing label categories: {', '.join(issue['missing'])}")
+        else:
+            print("\nAll issues have required labels! 🎉")
+
+        if prs_with_missing_labels:
+            print("\nPRs missing required labels:")
+            for pr in prs_with_missing_labels:
+                print(f"* [#{pr['number']}] {pr['title']}")
+                print(f"  URL: {pr['url']}")
+                print(f"  Missing label categories: {', '.join(pr['missing'])}")
+        else:
+            print("\nAll PRs have required labels! 🎉")
+
+        # Print summary
+        total_issues = len(issues_in_range)
+        total_prs = len(prs_in_range)
+        issues_with_problems = len(issues_with_missing_labels)
+        prs_with_problems = len(prs_with_missing_labels)
+
+        print(f"\nSummary:")
+        print(f"Issues: {issues_with_problems}/{total_issues} missing required labels")
+        print(f"PRs: {prs_with_problems}/{total_prs} missing required labels")
+
     else:
-        print("Invalid report type. Please use 'pdf', 'pr-issues', 'label-search', or 'pr-rejections'.")
+        print("Invalid report type. Please use 'pdf', 'pr-issues', 'label-search', 'pr-rejections', or 'label-check'.")
         exit(1)
     exit()
