@@ -1069,7 +1069,7 @@ def create_users_pdf_report(
             save_all=True,
             append_images=pages[1:]
         )
-        print(f"Users PDF report saved as '{pdf_filename}'")
+        print(f"Users PDF report saved at: {pdf_path}")
 
     except ImportError:
         print("Error: PIL (Pillow) library is required. Install it using: pip install Pillow")
@@ -1740,6 +1740,18 @@ def check_required_labels(item: dict, required_labels: dict, item_type: str) -> 
     Args:
         item (dict): The issue or PR to check
         required_labels (dict): Dictionary of required label categories and their values
+            Example structure:
+            {
+                'issues': {
+                    'type': ['feature', 'bug', 'enhancement'],
+                    'priority': ['PRIORITY_LOW', 'PRIORITY_MEDIUM', ...]
+                },
+                'prs': {
+                    'priority': ['PRIORITY_LOW', 'PRIORITY_MEDIUM', ...],
+                    'documentation': ['doc_done', 'doc_no-req'],
+                    'status': ['testing']
+                }
+            }
         item_type (str): Either 'issues' or 'prs'
 
     Returns:
@@ -1750,10 +1762,15 @@ def check_required_labels(item: dict, required_labels: dict, item_type: str) -> 
             'documentation': True
         }
     """
+    # Get the set of labels on the item
     item_labels = {label['name'] for label in item.get('labels', [])}
     results = {}
     
-    for category, allowed_labels in required_labels[item_type].items():
+    # Get the required categories for this item type
+    type_requirements = required_labels.get(item_type, {})
+    
+    # Check each required category
+    for category, allowed_labels in type_requirements.items():
         # Check if any of the allowed labels for this category are present
         has_required_label = any(label in item_labels for label in allowed_labels)
         results[category] = has_required_label
@@ -1770,7 +1787,7 @@ if __name__ == "__main__":
         description="Process GitHub issues based on week numbers"
     )
     parser = argparse.ArgumentParser(description="Process GitHub issues and generate reports")
-    parser.add_argument("--report-type", choices=['pdf', 'pr-issues', 'label-search', 'pr-rejections'], help="Type of report to generate")
+    parser.add_argument("--report-type", choices=['report-issues', 'report-prs', 'list-pr-issues', 'label-search', 'pr-rejections', 'label-check'], help="Type of report to generate")
     parser.add_argument("--start-date", help="Start date for PR-Issues report (YYYY-MM-DD)")
     parser.add_argument("--end-date", help="End date for PR-Issues report (YYYY-MM-DD)")
     parser.add_argument("--label", help="Label to search for")
@@ -1811,7 +1828,7 @@ if __name__ == "__main__":
     priority_scores = scores_config["priority_scores"]
 
     # --------------------------------------------------------------
-    if args.report_type == 'pdf':
+    if args.report_type == 'report-issues':
 
         # --------------------------------------------------------------
         if not args.start_date or not args.end_date:
@@ -1938,7 +1955,6 @@ if __name__ == "__main__":
                 end_date=args.end_date,
                 priority_scores=priority_scores
             )
-
 
         # --------------------------------------------------------------
         # Perform user analysis only if PERFORM_USER_ANALYSIS is true
@@ -2071,7 +2087,7 @@ if __name__ == "__main__":
             save_path="/workspace/tmp"
         )
 
-    elif args.report_type == 'pr-issues':
+    elif args.report_type == 'list-pr-issues':
         if not args.start_date or not args.end_date:
             print("Error: start-date and end-date are required for pr-issues report")
             exit(1)
@@ -2082,7 +2098,7 @@ if __name__ == "__main__":
         print(f"Total count: {closed_issues['count']}")
         
         if closed_issues['issues']:
-            print("\nClosed Issues list:")
+            print("\n\033[95mClosed Issues list:\033[0m")  # Purple text using ANSI escape code
             for issue in closed_issues['issues']:
                 issue_number = issue['url'].split('/')[-1]
                 print(f"* [{issue['closed_at']}] [#{issue_number}]{issue['title']}: {issue['url']}")
@@ -2093,7 +2109,7 @@ if __name__ == "__main__":
         print(f"Total count: {created_issues['count']}")
         
         if created_issues['issues']:
-            print("\nCreated Issues list:")
+            print("\n\033[95mCreated Issues list:\033[0m")  # Purple text using ANSI escape code
             for issue in created_issues['issues']:
                 issue_number = issue['url'].split('/')[-1]
                 print(f"* [{issue['created_at']}] [#{issue_number}]{issue['title']}: {issue['url']}")
@@ -2130,7 +2146,7 @@ if __name__ == "__main__":
                 issue_number = issue['url'].split('/')[-1]
                 print(f"* [created:{issue['created_at']}][closed-at:{issue['closed_at']}] [#{issue_number}] ({issue['state']}) {issue['title']}: {issue['url']}")
 
-    elif args.report_type == 'pr-rejections':
+    elif args.report_type == 'report-prs':
         if not args.start_date or not args.end_date:
             print("Error: start-date and end-date are required for pr-rejections report")
             exit(1)
@@ -2144,13 +2160,14 @@ if __name__ == "__main__":
         try:
             with open('configs/label_check.yaml', 'r') as file:
                 label_config = yaml.safe_load(file)
-                required_labels = label_config.get('required_labels', [])
+                if not isinstance(label_config, dict):
+                    raise ValueError("Invalid label_check.yaml format")
         except Exception as e:
             print(f"Error loading label_check.yaml: {str(e)}")
             exit(1)
 
-        if not required_labels:
-            print("No labels defined in label_check.yaml")
+        if not label_config.get('issues') and not label_config.get('prs'):
+            print("No label requirements defined in label_check.yaml")
             exit(1)
 
         # Get issues and PRs within date range
@@ -2177,6 +2194,14 @@ if __name__ == "__main__":
         print(f"\nChecking PRs created between {args.start_date} and {args.end_date}:")
         prs_with_missing_labels = []
         for pr in prs_in_range:
+            # Skip PRs that have any rejection label
+            has_rejection_label = any(
+                label['name'] in label_config['prs'].get('rejection', [])
+                for label in pr.get('labels', [])
+            )
+            if has_rejection_label:
+                continue
+                
             results = check_required_labels(pr, label_config, 'prs')
             missing_categories = [cat for cat, has_label in results.items() if not has_label]
             
@@ -2191,20 +2216,20 @@ if __name__ == "__main__":
 
         # Print results
         if issues_with_missing_labels:
-            print("\nIssues missing required labels:")
+            print("\n\033[95mIssues missing required labels:\033[0m")  # Purple text
             for issue in issues_with_missing_labels:
-                print(f"* [#{issue['number']}] {issue['title']}")
+                print(f"\n* [\033[1m#{issue['number']}] {issue['title']}\033[0m")  # Bold text
                 print(f"  URL: {issue['url']}")
-                print(f"  Missing label categories: {', '.join(issue['missing'])}")
+                print(f"  Missing label categories: \033[93m{', '.join(issue['missing'])}\033[0m")
         else:
             print("\nAll issues have required labels! 🎉")
 
         if prs_with_missing_labels:
-            print("\nPRs missing required labels:")
+            print("\n\033[95mPRs missing required labels:\033[0m")
             for pr in prs_with_missing_labels:
-                print(f"* [#{pr['number']}] {pr['title']}")
+                print(f"\n* [\033[1m#{pr['number']}\033[0m] {pr['title']}")  # Bold text
                 print(f"  URL: {pr['url']}")
-                print(f"  Missing label categories: {', '.join(pr['missing'])}")
+                print(f"  Missing label categories: \033[93m{', '.join(pr['missing'])}\033[0m")
         else:
             print("\nAll PRs have required labels! 🎉")
 
@@ -2215,10 +2240,13 @@ if __name__ == "__main__":
         prs_with_problems = len(prs_with_missing_labels)
 
         print(f"\nSummary:")
-        print(f"Issues: {issues_with_problems}/{total_issues} missing required labels")
-        print(f"PRs: {prs_with_problems}/{total_prs} missing required labels")
+        if issues_with_problems == 0 and prs_with_problems == 0:
+            print(f"\tAll {total_issues + total_prs} items are properly labeled! 🎉 🥳 ✨")
+        else:
+            print(f"\tIssues: {issues_with_problems}/{total_issues} missing required labels")
+            print(f"\tPRs: {prs_with_problems}/{total_prs} missing required labels")
 
     else:
-        print("Invalid report type. Please use 'pdf', 'pr-issues', 'label-search', 'pr-rejections', or 'label-check'.")
+        print("Invalid report type. Please use 'list-pr-issues', 'report-issues', 'report-prs', 'label-search', 'pr-rejections', or 'label-check'.")
         exit(1)
     exit()

@@ -44,6 +44,7 @@ fi
 # Add function to get dates
 get_date_range() {
     if [[ -n "${REPORT_START_DATE}" ]] && [[ -n "${REPORT_END_DATE}" ]]; then
+        echo -e "\033[33mWarning: Using dates from environment variables\033[0m"
         start_date="${REPORT_START_DATE}"
         end_date="${REPORT_END_DATE}"
     else
@@ -64,10 +65,10 @@ get_date_range() {
 # Update menu function
 show_menu() {
     echo "Please select an option:"
-    echo "1. Generate PDF reports (User reports and total report)"
+    echo "1. Generate Issues PDF reports (User reports and total report)"
     echo "2. Generate/Print PR and Issues report between dates"
     echo "3. Search PR and Issues by label"
-    echo "4. Analyze PR rejections for all users between two dates"
+    echo "4. Generate PRs PDF reports "
     echo "5. Check labels in PRs and Issues"
     echo "6. Exit"
     read -p "Enter your choice (1-6): " choice
@@ -103,14 +104,14 @@ fi
 show_menu
 case $choice in
     1)
-        echo "Generating PDF reports..."
+        echo "Generating Issues PDF reports ..."
         get_date_range
-        python3 scripts/utils.py --report-type pdf --start-date "$start_date" --end-date "$end_date"
+        python3 scripts/utils.py --report-type report-issues --start-date "$start_date" --end-date "$end_date"
         ;;
     2)
         echo "Generating PR and Issues report..."
         get_date_range
-        python3 scripts/utils.py --report-type pr-issues --start-date "$start_date" --end-date "$end_date"
+        python3 scripts/utils.py --report-type list-pr-issues --start-date "$start_date" --end-date "$end_date"
         ;;
     3)
         echo "Searching PR and Issues by label..."
@@ -119,9 +120,9 @@ case $choice in
         python3 scripts/utils.py --report-type label-search --label "$label_name" --start-date "$start_date" --end-date "$end_date"
         ;;
     4)
-        echo "Analyzing PR rejections for a users..."
+        echo " Generating PRs PDF reports "
         get_date_range
-        python3 scripts/utils.py --report-type pr-rejections --start-date "$start_date" --end-date "$end_date"
+        python3 scripts/utils.py --report-type report-prs --start-date "$start_date" --end-date "$end_date"
         ;;
     5)
         echo "Checking labels in PRs and Issues..."

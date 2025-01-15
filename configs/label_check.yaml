@@ -22,4 +22,7 @@ prs:
     - doc_no-req
   status:
     - testing
-  
+  rejection:
+    - Rejected_Checks
+    - Rejected_Traceback
+    - Rejected_Unforeseen
