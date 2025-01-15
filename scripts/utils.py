@@ -796,9 +796,8 @@ def create_pdf_report(
 
 def create_issues_score_levels_graph(
     issues_data: list,
-    start_week: int,
-    end_week: int,
-    current_year: int,
+    start_date: str,
+    end_date: str,
     priority_scores: dict,
     save_path: str = "/workspace/tmp",
 ) -> None:
@@ -808,43 +807,54 @@ def create_issues_score_levels_graph(
 
     Args:
         issues_data (list): List of GitHub issues
-        start_week (int): Starting week number (1-52)
-        end_week (int): Ending week number (1-52)
-        current_year (int): Year for the analysis
+        start_date (str): Start date in 'YYYY-MM-DD' format
+        end_date (str): End date in 'YYYY-MM-DD' format
         priority_scores (dict): Dictionary containing priority configurations with weights and colors
-            Example: {
-                'PRIORITY_LOW': {'weight': 1, 'color': '#FFFF00'},
-                'PRIORITY_MEDIUM': {'weight': 2, 'color': '#FFA500'},
-                'PRIORITY_HIGH': {'weight': 3, 'color': '#F35325'},
-                'SATANIC': {'weight': 5, 'color': '#8B0000'},
-                'UNCATEGORIZED': {'weight': 0, 'color': '#A9A9A9'}
-            }
         save_path (str, optional): Directory to save the graph. Defaults to "/workspace/tmp"
     """
-    weeks = list(range(start_week, end_week + 1))
-    priority_data = {priority: [] for priority in priority_scores.keys()}
+    # Convert string dates to datetime objects
+    start_date_obj = datetime.strptime(start_date, "%Y-%m-%d").date()
+    end_date_obj = datetime.strptime(end_date, "%Y-%m-%d").date()
 
-    # Collect data for each week
-    for week in weeks:
-        week_end = get_week_end_date(current_year, week)
+    # Generate list of weeks between start_date and end_date
+    current_date = start_date_obj
+    weeks_data = []
+    
+    while current_date <= end_date_obj:
+        year, week, _ = current_date.isocalendar()
+        week_start = get_week_start_date(year, week)
+        week_end = get_week_end_date(year, week)
+        
+        # Get open issues for this week
         open_issues = get_open_issues_up_to_date(issues_data, week_end)
         categories = categorize_issues_by_priority(open_issues, priority_scores)
         
-        for priority in priority_data.keys():
-            priority_data[priority].append(categories[priority]["issue_count"])
+        weeks_data.append({
+            'week_label': f"{str(year)[-2:]}-{str(week).zfill(2)}",
+            'categories': categories
+        })
+        
+        # Move to next week
+        current_date += timedelta(days=7)
+
+    # Extract data for plotting
+    weeks = [data['week_label'] for data in weeks_data]
+    priority_data = {priority: [] for priority in priority_scores.keys()}
+
+    # Collect counts for each priority level
+    for week_data in weeks_data:
+        for priority in priority_scores.keys():
+            priority_data[priority].append(week_data['categories'][priority]["issue_count"])
 
     # Create the visualization with dual x-axes
     fig, ax1 = plt.subplots(figsize=(15, 8))
-    
-    # Create second x-axis for months
-    ax2 = ax1.twiny()
 
     # Create stacked bar chart on primary axis
     bottom = np.zeros(len(weeks))
     
     for priority, counts in priority_data.items():
         ax1.bar(
-            weeks,
+            range(len(weeks)),
             counts,
             bottom=bottom,
             label=priority,
@@ -857,33 +867,15 @@ def create_issues_score_levels_graph(
             if count > 0:
                 # Position the text in the middle of its segment
                 height = bottom[i] + (count / 2)
-                ax1.text(weeks[i], height, str(count), ha='center', va='center')
+                ax1.text(i, height, str(count), ha='center', va='center')
         
         bottom += np.array(counts)
 
     # Set up the primary x-axis (weeks)
-    ax1.set_xlim(min(weeks) - 0.5, max(weeks) + 0.5)
-    ax1.set_xticks(weeks)
+    ax1.set_xlim(-0.5, len(weeks) - 0.5)
+    ax1.set_xticks(range(len(weeks)))
+    ax1.set_xticklabels(weeks, rotation=45)
     ax1.set_xlabel("Week Number")
-    
-    # Set up the secondary x-axis (months)
-    month_positions = []
-    month_labels = []
-    
-    # Get unique months and their positions
-    for week in weeks:
-        week_start = get_week_start_date(current_year, week)
-        month_name = week_start.strftime("%B")
-        month_pos = week
-        
-        # Only add month if it's not already in labels or if it's the first week
-        if not month_labels or month_labels[-1] != month_name:
-            month_positions.append(month_pos)
-            month_labels.append(month_name)
-    
-    ax2.set_xlim(ax1.get_xlim())
-    ax2.set_xticks(month_positions)
-    ax2.set_xticklabels(month_labels)
     
     plt.title("GitHub Issues by Priority Level per Week")
     ax1.set_ylabel("Number of Issues")
@@ -1878,7 +1870,6 @@ if __name__ == "__main__":
                 priority_scores=priority_scores
             )
 
-        exit()
 
 
         # --------------------------------------------------------------
@@ -1886,11 +1877,13 @@ if __name__ == "__main__":
         if os.getenv("PERFORM_PRIORITY_ANALYSIS", "false").lower() == "true":
             create_issues_score_levels_graph(
                 issues_data=issues_data,
-                start_week=start_week,
-                end_week=end_week,
-                current_year=current_year,
+                start_date=args.start_date,
+                end_date=args.end_date,
                 priority_scores=priority_scores
             )
+
+        exit()
+
 
         # --------------------------------------------------------------
         # Perform user analysis only if PERFORM_USER_ANALYSIS is true
