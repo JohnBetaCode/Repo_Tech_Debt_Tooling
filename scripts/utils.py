@@ -418,16 +418,22 @@ def create_issues_activity_graph(
 
 def create_issues_score_graph(
     issues_data: list,
-    start_week: int,
-    end_week: int,
-    current_year: int,
+    start_date: str,
+    end_date: str,
     priority_scores: dict,
     save_path: str = "/workspace/tmp",
 ) -> None:
     """
-    Creates and saves a graph showing weekly GitHub issues scores based on priority.
+    Creates and saves a graph showing GitHub issues scores based on priority between two dates.
     Uses bars for created/closed issues scores and line for open issues scores.
     Includes background color zones based on score ranges defined in color_scale_config.yaml.
+
+    Args:
+        issues_data (list): List of GitHub issues
+        start_date (str): Start date in 'YYYY-MM-DD' format
+        end_date (str): End date in 'YYYY-MM-DD' format
+        priority_scores (dict): Dictionary containing priority configurations with weights and colors
+        save_path (str, optional): Directory to save the graph. Defaults to "/workspace/tmp"
     """
     # Load color scale configuration
     try:
@@ -438,100 +444,82 @@ def create_issues_score_graph(
         print(f"Warning: Could not load color scale configuration: {str(e)}")
         color_scales = []
 
-    weeks = list(range(start_week, end_week + 1))
-    open_scores = []
-    created_scores = []
-    closed_scores = []
+    # Convert string dates to datetime objects
+    start_date_obj = datetime.strptime(start_date, "%Y-%m-%d").date()
+    end_date_obj = datetime.strptime(end_date, "%Y-%m-%d").date()
 
-    for week in weeks:
-        week_start = get_week_start_date(current_year, week)
-        week_end = get_week_end_date(current_year, week)
-
+    # Generate list of weeks between start_date and end_date
+    current_date = start_date_obj
+    weeks_data = []
+    while current_date <= end_date_obj:
+        year, week, _ = current_date.isocalendar()
+        week_start = get_week_start_date(year, week)
+        week_end = get_week_end_date(year, week)
+        
         # Get issues for each category
         open_issues = get_open_issues_up_to_date(issues_data, week_end)
-        created_issues = get_issues_created_between_dates(
-            issues_data, week_start, week_end
-        )
-        closed_issues = get_issues_closed_between_dates(
-            issues_data, week_start, week_end
-        )
+        created_issues = get_issues_created_between_dates(issues_data, week_start, week_end)
+        closed_issues = get_issues_closed_between_dates(issues_data, week_start, week_end)
 
         # Calculate scores for each category
-        open_categories = categorize_issues_by_priority(issues=open_issues, priority_scores=priority_scores)
-        created_categories = categorize_issues_by_priority(issues=created_issues, priority_scores=priority_scores)
-        closed_categories = categorize_issues_by_priority(issues=closed_issues, priority_scores=priority_scores)
+        open_categories = categorize_issues_by_priority(open_issues, priority_scores)
+        created_categories = categorize_issues_by_priority(created_issues, priority_scores)
+        closed_categories = categorize_issues_by_priority(closed_issues, priority_scores)
 
         # Sum up total scores
-        open_score = sum(cat["total_score"] for cat in open_categories.values())
-        created_score = sum(cat["total_score"] for cat in created_categories.values())
-        closed_score = sum(cat["total_score"] for cat in closed_categories.values())
+        weeks_data.append({
+            'week_label': f"{str(year)[-2:]}-{str(week).zfill(2)}",
+            'open_score': sum(cat["total_score"] for cat in open_categories.values()),
+            'created_score': sum(cat["total_score"] for cat in created_categories.values()),
+            'closed_score': sum(cat["total_score"] for cat in closed_categories.values())
+        })
+        
+        # Move to next week
+        current_date += timedelta(days=7)
 
-        open_scores.append(open_score)
-        created_scores.append(created_score)
-        closed_scores.append(closed_score)
+    # Extract data for plotting
+    weeks = [data['week_label'] for data in weeks_data]
+    open_scores = [data['open_score'] for data in weeks_data]
+    created_scores = [data['created_score'] for data in weeks_data]
+    closed_scores = [data['closed_score'] for data in weeks_data]
 
     # Create the visualization
     fig, ax = plt.subplots(figsize=(12, 6))
 
     # Add background color zones if configuration is available
     if color_scales:
-        # Get the full y-axis range
         max_score = max(max(open_scores), max(created_scores), max(closed_scores))
-        y_max = max(max_score * 1.2, color_scales[-1]['range'][1])  # Use larger of max score or highest range
+        y_max = max(max_score * 1.2, color_scales[-1]['range'][1])
         
-        # Add colored background zones
         for scale in color_scales:
             range_min, range_max = scale['range']
             rect = Rectangle(
-                (min(weeks) - 0.5, range_min),  # (x, y)
-                max(weeks) - min(weeks) + 1,    # width
-                range_max - range_min,          # height
+                (-0.5, range_min),
+                len(weeks),
+                range_max - range_min,
                 facecolor=scale['color'],
                 alpha=0.2,
-                zorder=0  # Ensure background is behind other elements
+                zorder=0
             )
             ax.add_patch(rect)
             
-            # Add zone labels on the right side
             ax.text(
-                max(weeks) + 0.6,              # x position (just outside the plot)
-                (range_min + range_max) / 2,    # y position (middle of zone)
+                len(weeks) + 0.6,
+                (range_min + range_max) / 2,
                 scale['name'],
                 verticalalignment='center',
                 fontsize=8
             )
 
-    # Plot bars for created and closed issues scores
+    # Plot bars and line
     bar_width = 0.35
-    bar_positions_created = [x - bar_width / 2 for x in weeks]
-    bar_positions_closed = [x + bar_width / 2 for x in weeks]
+    x_positions = range(len(weeks))
+    bar_positions_created = [x - bar_width/2 for x in x_positions]
+    bar_positions_closed = [x + bar_width/2 for x in x_positions]
 
-    plt.bar(
-        bar_positions_created,
-        created_scores,
-        bar_width,
-        label="Created Issues Score",
-        color="r",
-        alpha=0.6,
-    )
-    plt.bar(
-        bar_positions_closed,
-        closed_scores,
-        bar_width,
-        label="Closed Issues Score",
-        color="g",
-        alpha=0.6,
-    )
-
-    # Plot line for open issues scores
-    plt.plot(
-        weeks,
-        open_scores,
-        "b:",
-        label="Open Issues Score at week end",
-        marker="o",
-        linewidth=2,
-    )
+    plt.bar(bar_positions_created, created_scores, bar_width, label="Created Issues Score", color="r", alpha=0.6)
+    plt.bar(bar_positions_closed, closed_scores, bar_width, label="Closed Issues Score", color="g", alpha=0.6)
+    plt.plot(x_positions, open_scores, "b:", label="Open Issues Score at week end", marker="o", linewidth=2)
 
     # Add value labels
     for i, value in enumerate(created_scores):
@@ -539,7 +527,7 @@ def create_issues_score_graph(
     for i, value in enumerate(closed_scores):
         plt.text(bar_positions_closed[i], value, str(value), ha="center", va="bottom")
     for i, value in enumerate(open_scores):
-        plt.text(weeks[i], value, str(value), ha="center", va="bottom")
+        plt.text(x_positions[i], value, str(value), ha="center", va="bottom")
 
     plt.title("GitHub Issues Priority Scores by Week")
     plt.xlabel("Week Number")
@@ -547,15 +535,14 @@ def create_issues_score_graph(
     plt.grid(True, linestyle="--", alpha=0.7)
     plt.legend()
 
-    # Force x-axis to show all weeks
-    plt.xticks(weeks)
-    plt.xlim(min(weeks) - 0.5, max(weeks) + 2.0)  # Extended right margin for labels
-    plt.ylim(0, y_max)
+    # Set x-axis ticks and labels
+    plt.xticks(x_positions, weeks, rotation=45)
+    plt.xlim(-0.5, len(weeks) + 2.0)
+    if color_scales:
+        plt.ylim(0, y_max)
 
     # Save the plot
-    plt.savefig(
-        os.path.join(save_path, "issues_score.png"), bbox_inches="tight", dpi=300
-    )
+    plt.savefig(os.path.join(save_path, "issues_score.png"), bbox_inches="tight", dpi=300)
     print("Graph saved as 'issues_score.png'")
     plt.close()
 
@@ -1881,20 +1868,18 @@ if __name__ == "__main__":
                 headers=headers
             )
 
-
-        exit()
-
-
         # --------------------------------------------------------------
         # Create score graph only if PERFORM_SCORE_ANALYSIS is true
         if os.getenv("PERFORM_SCORE_ANALYSIS", "false").lower() == "true":
             create_issues_score_graph(
                 issues_data=issues_data,
-                start_week=start_week,
-                end_week=end_week,
-                current_year=current_year,
+                start_date=args.start_date,
+                end_date=args.end_date,
                 priority_scores=priority_scores
             )
+
+        exit()
+
 
         # --------------------------------------------------------------
         # Create priority levels graph only if PERFORM_PRIORITY_ANALYSIS is true
