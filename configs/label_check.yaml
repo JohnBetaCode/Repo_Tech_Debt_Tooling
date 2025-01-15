@@ -1,0 +1,25 @@
+issues:
+  type:
+    - feature
+    - bug
+    - enhacement
+  priority:
+    - PRIORITY_LOW
+    - PRIORITY_MEDIUM
+    - PRIORITY_HIGH
+    - SATANIC
+  documentation:
+    - doc_no-req
+    - doc_done
+prs:
+  priority:
+    - PRIORITY_LOW
+    - PRIORITY_MEDIUM
+    - PRIORITY_HIGH
+    - SATANIC
+  documentation:
+    - doc_done
+    - doc_no-req
+  status:
+    - testing
+  
