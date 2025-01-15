@@ -1870,8 +1870,6 @@ if __name__ == "__main__":
                 priority_scores=priority_scores
             )
 
-
-
         # --------------------------------------------------------------
         # Create priority levels graph only if PERFORM_PRIORITY_ANALYSIS is true
         if os.getenv("PERFORM_PRIORITY_ANALYSIS", "false").lower() == "true":
@@ -1881,8 +1879,6 @@ if __name__ == "__main__":
                 end_date=args.end_date,
                 priority_scores=priority_scores
             )
-
-        exit()
 
 
         # --------------------------------------------------------------
@@ -1928,6 +1924,9 @@ if __name__ == "__main__":
                     end_week=end_week,
                     current_year=current_year
                 )
+                
+                continue # DELETE WHEN DONE
+
                 
                 # Get weekly scores data for the user
                 user_weekly_scores = get_user_weekly_scores(
@@ -1989,6 +1988,8 @@ if __name__ == "__main__":
                         for week_data in user_weekly_data
                     ]
                     print(tabulate(table_data, headers=headers, tablefmt="grid"))
+
+        exit() # DELETE WHEN DONE
 
         # --------------------------------------------------------------
         # Create user distribution charts
