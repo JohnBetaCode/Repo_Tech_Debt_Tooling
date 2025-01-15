@@ -576,7 +576,7 @@ def get_unique_users_from_issues(issues: list) -> list:
 
 def create_user_distribution_charts(
     users_statistics: list,
-    end_week: int,
+    end_date: str,
     save_path: str = "/workspace/tmp"
 ) -> None:
     """
@@ -585,7 +585,7 @@ def create_user_distribution_charts(
 
     Args:
         users_statistics (list): List of dictionaries containing user statistics
-        end_week (int): The last week number being analyzed
+        end_date (str): The end date in YYYY-MM-DD format
         save_path (str): Directory to save the graph
     """
     # Skip if no data
@@ -641,7 +641,7 @@ def create_user_distribution_charts(
             autopct='',  # We already include percentages in labels
             startangle=90
         )
-    ax1.set_title(f'Issues Distribution - Week {end_week}\nTotal Issues: {total_issues}')
+    ax1.set_title(f'Issues Distribution - Week {end_date}\nTotal Issues: {total_issues}')
 
     # Plot scores distribution
     if values_scores:
@@ -651,7 +651,7 @@ def create_user_distribution_charts(
             autopct='',  # We already include percentages in labels
             startangle=90
         )
-    ax2.set_title(f'Score Distribution - Week {end_week}\nTotal Score: {total_score}')
+    ax2.set_title(f'Score Distribution - Week {end_date}\nTotal Score: {total_score}')
 
     # Add warning text at the bottom of the figure
     warning_text = (
@@ -672,11 +672,11 @@ def create_user_distribution_charts(
 
     # Save the plot
     plt.savefig(
-        os.path.join(save_path, f'user_distribution_week_{end_week}.png'),
+        os.path.join(save_path, f'user_distribution_week_{end_date}.png'),
         bbox_inches='tight',
         dpi=300
     )
-    print(f"User distribution charts saved for week {end_week}")
+    print(f"User distribution charts saved for week {end_date}")
     plt.close()
 
 
@@ -697,12 +697,14 @@ def get_unique_users_from_issues(issues_data: list) -> list:
     return sorted(list(unique_users))
 
 def create_pdf_report(
-    start_week: int, end_week: int, save_path: str = "/workspace/tmp"
+    start_date: str,
+    end_date: str,
+    save_path: str = "/workspace/tmp"
 ) -> None:
     try:
         # Get dates for filename
-        start_date = get_week_start_date(datetime.now().year, start_week)
-        end_date = get_week_end_date(datetime.now().year, end_week)
+        start_date_obj = datetime.strptime(start_date, "%Y-%m-%d").date()
+        end_date_obj = datetime.strptime(end_date, "%Y-%m-%d").date()
 
         # Get current time in configured timezone
         tz = pytz.timezone(os.getenv('REPORT_TIMEZONE', 'America/New_York'))  # Fallback to EST/EDT if not set
@@ -711,7 +713,7 @@ def create_pdf_report(
 
         # Create filename
         pdf_filename = (
-            f"tech_debt_report_W{start_week}-{start_date}_to_W{end_week}-{end_date}.pdf"
+            f"tech_debt_report_{start_date}_to_{end_date}.pdf"
         )
         pdf_path = os.path.join(save_path, pdf_filename)
 
@@ -720,7 +722,7 @@ def create_pdf_report(
             'issues_activity.png',
             'issues_score.png',
             'issues_priority_levels.png',
-            f'user_distribution_week_{end_week}.png'
+            f'user_distribution_week_{end_date}.png'
         ]
 
         # Filter existing PNG files while maintaining order
@@ -893,14 +895,16 @@ def create_issues_score_levels_graph(
 
 
 def create_users_pdf_report(
-    start_week: int, end_week: int, save_path: str = "/workspace/tmp"
+    start_date: str,
+    end_date: str,
+    save_path: str = "/workspace/tmp"
 ) -> None:
     """
     Creates a single PDF report with title page, index, and one page per user containing all their graphs.
     
     Args:
-        start_week (int): Starting week number
-        end_week (int): Ending week number
+        start_date (str): Start date in YYYY-MM-DD format
+        end_date (str): End date in YYYY-MM-DD format
         save_path (str, optional): Base directory containing user folders. Defaults to "/workspace/tmp"
     """
     try:
@@ -909,8 +913,8 @@ def create_users_pdf_report(
         import glob
 
         # Get dates for filename
-        start_date = get_week_start_date(datetime.now().year, start_week)
-        end_date = get_week_end_date(datetime.now().year, end_week)
+        start_date_obj = datetime.strptime(start_date, "%Y-%m-%d").date()
+        end_date_obj = datetime.strptime(end_date, "%Y-%m-%d").date()
 
         # Constants for PDF layout
         DPI = 300
@@ -959,7 +963,7 @@ def create_users_pdf_report(
 
         # Add title page content
         title = "GitHub Issues Report"
-        subtitle = f"Weeks {start_week} to {end_week}"
+        subtitle = f"Weeks {start_date} to {end_date}"
         date_range = f"({start_date} - {end_date})"
         
         # Calculate text positions for centering
@@ -1046,7 +1050,7 @@ def create_users_pdf_report(
             pages.append(user_page)
 
         # Create output filename and save PDF
-        pdf_filename = f"user_reports_W{start_week}-{start_date}_to_W{end_week}-{end_date}.pdf"
+        pdf_filename = f"user_reports_{start_date}_to_{end_date}.pdf"
         pdf_path = os.path.join(save_path, pdf_filename)
         
         # Save all pages to PDF
@@ -1378,16 +1382,28 @@ def create_user_priority_levels_graph(
         end_date (str): End date in 'YYYY-MM-DD' format
         save_path (str): Directory to save the graph
         priority_scores (dict): Dictionary containing priority configurations with weights and colors
-            Example: {
-                'PRIORITY_LOW': {'weight': 1, 'color': '#FFFF00'},
-                'PRIORITY_MEDIUM': {'weight': 2, 'color': '#FFA500'},
-                'PRIORITY_HIGH': {'weight': 3, 'color': '#F35325'},
-                'SATANIC': {'weight': 5, 'color': '#8B0000'},
-                'UNCATEGORIZED': {'weight': 0, 'color': '#A9A9A9'}
-            }
     """
-    weeks = list(range(start_date.year, end_date.year + 1))
-    priority_data = {priority: [] for priority in priority_scores.keys()}
+    # Convert string dates to datetime objects
+    start_date_obj = datetime.strptime(start_date, "%Y-%m-%d").date()
+    end_date_obj = datetime.strptime(end_date, "%Y-%m-%d").date()
+
+    # Generate list of weeks between start_date and end_date
+    current_date = start_date_obj
+    weeks_data = []
+    
+    while current_date <= end_date_obj:
+        year, week, _ = current_date.isocalendar()
+        week_start = get_week_start_date(year, week)
+        week_end = get_week_end_date(year, week)
+        
+        weeks_data.append({
+            'week_label': f"{str(year)[-2:]}-{str(week).zfill(2)}",
+            'week_start': week_start,
+            'week_end': week_end
+        })
+        
+        # Move to next week
+        current_date += timedelta(days=7)
 
     # Filter issues for this user
     user_issues = [
@@ -1395,10 +1411,12 @@ def create_user_priority_levels_graph(
         if any(assignee.get('login') == username for assignee in issue.get('assignees', []))
     ]
 
+    # Collect data for each priority level
+    priority_data = {priority: [] for priority in priority_scores.keys()}
+    
     # Collect data for each week
-    for week in weeks:
-        week_end = get_week_end_date(week, 52)
-        open_issues = get_open_issues_up_to_date(user_issues, week_end)
+    for week in weeks_data:
+        open_issues = get_open_issues_up_to_date(user_issues, week['week_end'])
         categories = categorize_issues_by_priority(open_issues, priority_scores)
         
         for priority in priority_data.keys():
@@ -1411,11 +1429,12 @@ def create_user_priority_levels_graph(
     ax2 = ax1.twiny()
 
     # Create stacked bar chart on primary axis
-    bottom = np.zeros(len(weeks))
+    bottom = np.zeros(len(weeks_data))
+    x_positions = range(len(weeks_data))
 
     for priority, counts in priority_data.items():
         ax1.bar(
-            weeks,
+            x_positions,
             counts,
             bottom=bottom,
             label=priority,
@@ -1428,13 +1447,15 @@ def create_user_priority_levels_graph(
             if count > 0:
                 # Position the text in the middle of its segment
                 height = bottom[i] + (count / 2)
-                ax1.text(weeks[i], height, str(count), ha='center', va='center')
+                ax1.text(i, height, str(count), ha='center', va='center')
         
         bottom += np.array(counts)
 
     # Set up the primary x-axis (weeks)
-    ax1.set_xlim(min(weeks) - 0.5, max(weeks) + 0.5)
-    ax1.set_xticks(weeks)
+    week_labels = [week['week_label'] for week in weeks_data]
+    ax1.set_xlim(-0.5, len(weeks_data) - 0.5)
+    ax1.set_xticks(x_positions)
+    ax1.set_xticklabels(week_labels, rotation=45)
     ax1.set_xlabel("Week Number")
     
     # Set up the secondary x-axis (months)
@@ -1442,14 +1463,12 @@ def create_user_priority_levels_graph(
     month_labels = []
     
     # Get unique months and their positions
-    for week in weeks:
-        week_start = get_week_start_date(week, 1)
-        month_name = week_start.strftime("%B")
-        month_pos = week
+    for i, week in enumerate(weeks_data):
+        month_name = week['week_start'].strftime("%B")
         
         # Only add month if it's not already in labels or if it's the first week
         if not month_labels or month_labels[-1] != month_name:
-            month_positions.append(month_pos)
+            month_positions.append(i)
             month_labels.append(month_name)
     
     ax2.set_xlim(ax1.get_xlim())
@@ -1977,8 +1996,6 @@ if __name__ == "__main__":
                     priority_scores=priority_scores
                 )
                 
-                continue # DELETE WHEN DONE
-                            
 
                 # Print user statistics if logging is enabled
                 if os.getenv("PRINT_LOGS_ANALYSIS_RESULTS", "false").lower() == "true":
@@ -1995,23 +2012,29 @@ if __name__ == "__main__":
                     ]
                     print(tabulate(table_data, headers=headers, tablefmt="grid"))
 
-        exit() # DELETE WHEN DONE
-
         # --------------------------------------------------------------
         # Create user distribution charts
         if os.getenv("PERFORM_USER_ANALYSIS", "false").lower() == "true":
             create_user_distribution_charts(
                 users_statistics=users_statistics,
-                end_week=end_week,
+                end_date=args.end_date,  # Changed from end_week
                 save_path="/workspace/tmp"
             )
             
             # Create users PDF report
-            create_users_pdf_report(start_week, end_week)            
+            create_users_pdf_report(
+                start_date=args.start_date,  # Changed from start_week
+                end_date=args.end_date,      # Changed from end_week
+                save_path="/workspace/tmp"
+            )            
 
         # --------------------------------------------------------------
         # After creating all graphs, merge them into PDF
-        create_pdf_report(start_week, end_week)
+        create_pdf_report(
+            start_date=args.start_date,  # Changed from start_week
+            end_date=args.end_date,      # Changed from end_week
+            save_path="/workspace/tmp"
+        )
 
     elif args.report_type == 'pr-issues':
         if not args.start_date or not args.end_date:

@@ -13,7 +13,7 @@ export PERFORM_SCORE_ANALYSIS=true
 export PERFORM_QUANTITATIVE_ANALYSIS=true
 
 # Whether to print analysis results to logs
-export PRINT_LOGS_ANALYSIS_RESULTS=true
+export PRINT_LOGS_ANALYSIS_RESULTS=false
 
 # Toggle for analyzing priority-related metrics
 export PERFORM_PRIORITY_ANALYSIS=true
@@ -23,5 +23,5 @@ export DELETE_PREVIOUS_REPORT=true
 
 # Date range for report generation (YYYY-MM-DD format)
 # This is development, save a lot of time, comment out when done
-export REPORT_START_DATE="2024-10-01"
-export REPORT_END_DATE="2025-01-13"
+export REPORT_START_DATE="2024-09-01"
+export REPORT_END_DATE="2025-01-15"
