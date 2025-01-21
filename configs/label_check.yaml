@@ -8,6 +8,7 @@ issues:
     - #type_feature
     - #type_bug
     - #type_enhancement
+    - #type_hotfix
   priority:
     - PRIORITY_LOW
     - PRIORITY_MEDIUM
