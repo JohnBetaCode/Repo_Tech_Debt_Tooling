@@ -5,9 +5,9 @@ issues:
     - syst_teleoperation
     - syst_other
   type:
-    - type_feature
-    - type_bug
-    - type_enhancement
+    - #type_feature
+    - #type_bug
+    - #type_enhancement
   priority:
     - PRIORITY_LOW
     - PRIORITY_MEDIUM
