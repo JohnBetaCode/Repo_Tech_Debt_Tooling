@@ -1,20 +1,27 @@
 issues:
+  category:
+    - nav2
+    - wireless_station
+    - teleoperation
   type:
     - feature
     - bug
     - enhancement
-    - nav2
-    - wireless_station
   priority:
     - PRIORITY_LOW
     - PRIORITY_MEDIUM
     - PRIORITY_HIGH
     - SATANIC
-  documentation:
-    - doc_no-req
-    - doc_done
-  type:
-    - stale
+  departments:
+    - AI
+    - HW
+    - IT
+    - DATA
+    - MTO
+    - OPS
+    - SD
+    - OTHERS
+
 prs:
   priority:
     - PRIORITY_LOW
