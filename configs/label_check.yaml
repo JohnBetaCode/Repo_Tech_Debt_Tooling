@@ -22,7 +22,6 @@ issues:
     - by_OPS
     - by_SD
     - by_OTHERS
-
 prs:
   priority:
     - PRIORITY_LOW
