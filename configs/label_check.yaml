@@ -1,45 +1,45 @@
 issues:
   category:
-    - nav2
-    - wireless_station
-    - teleoperation
+    - syst_nav2
+    - syst_wireless_station
+    - syst_teleoperation
+    - syst_other
   type:
-    - feature
-    - bug
-    - enhancement
+    - type_feature
+    - type_bug
+    - type_enhancement
   priority:
     - PRIORITY_LOW
     - PRIORITY_MEDIUM
     - PRIORITY_HIGH
-    - SATANIC
+    - PRIORITY_SATANIC
   departments:
-    - AI
-    - HW
-    - IT
-    - DATA
-    - MTO
-    - OPS
-    - SD
-    - OTHERS
+    - by_AI
+    - by_HW
+    - by_IT
+    - by_DATA
+    - by_MTO
+    - by_OPS
+    - by_SD
+    - by_OTHERS
 
 prs:
   priority:
     - PRIORITY_LOW
     - PRIORITY_MEDIUM
     - PRIORITY_HIGH
-    - SATANIC
+    - PRIORITY_SATANIC
   documentation:
     - doc_done
     - doc_no_req
     - doc_req
   status:
-    - ready_to_test
-    - testing
-    - tech_check
-    - qa_check
-    - in_progress
-    - stale
+    - state_ready_to_test
+    - state_testing
+    - state_tech_check
+    - state_qa_check
+    - state_in_progress
   rejection:
-    - Rejected_Checks
-    - Rejected_Traceback
-    - Rejected_Unforeseen
+    - Reject_Checks
+    - Reject_Traceback
+    - Reject_Unforeseen
