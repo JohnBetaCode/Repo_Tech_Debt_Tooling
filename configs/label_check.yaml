@@ -1,16 +1,27 @@
 issues:
+  category:
+    - nav2
+    - wireless_station
+    - teleoperation
   type:
     - feature
     - bug
-    - enhacement
+    - enhancement
   priority:
     - PRIORITY_LOW
     - PRIORITY_MEDIUM
     - PRIORITY_HIGH
     - SATANIC
-  documentation:
-    - doc_no-req
-    - doc_done
+  departments:
+    - AI
+    - HW
+    - IT
+    - DATA
+    - MTO
+    - OPS
+    - SD
+    - OTHERS
+
 prs:
   priority:
     - PRIORITY_LOW
@@ -19,9 +30,15 @@ prs:
     - SATANIC
   documentation:
     - doc_done
-    - doc_no-req
+    - doc_no_req
+    - doc_req
   status:
+    - ready_to_test
     - testing
+    - tech_check
+    - qa_check
+    - in_progress
+    - stale
   rejection:
     - Rejected_Checks
     - Rejected_Traceback

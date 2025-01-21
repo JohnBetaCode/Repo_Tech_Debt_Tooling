@@ -4,7 +4,7 @@
 export GENERATE_REPORT_CLEANUP=false
 
 # Toggle for analyzing user-related metrics
-export PERFORM_USER_ANALYSIS=false
+export PERFORM_USER_ANALYSIS=true
 
 # Toggle for analyzing score-related metrics
 export PERFORM_SCORE_ANALYSIS=true
@@ -23,6 +23,5 @@ export DELETE_PREVIOUS_REPORT=true
 
 # Date range for report generation (YYYY-MM-DD format)
 # This is development, save a lot of time, comment out when done
-export REPORT_START_DATE="2024-09-01"
-export REPORT_START_DATE="2025-01-06"
-export REPORT_END_DATE="2025-01-15"
+export REPORT_START_DATE="2024-12-01"
+export REPORT_END_DATE="2025-01-20"
