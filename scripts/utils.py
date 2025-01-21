@@ -2170,6 +2170,9 @@ if __name__ == "__main__":
             print("No label requirements defined in label_check.yaml")
             exit(1)
 
+        # Remove rejection labels from PRs
+        label_config['prs'].pop('rejection', None)
+
         # Get issues and PRs within date range
         issues_in_range = get_issues_created_between_dates(issues_data, args.start_date, args.end_date)
         prs_in_range = get_issues_created_between_dates(prs_data, args.start_date, args.end_date)
@@ -2194,13 +2197,6 @@ if __name__ == "__main__":
         print(f"\nChecking PRs created between {args.start_date} and {args.end_date}:")
         prs_with_missing_labels = []
         for pr in prs_in_range:
-            # Skip PRs that have any rejection label
-            has_rejection_label = any(
-                label['name'] in label_config['prs'].get('rejection', [])
-                for label in pr.get('labels', [])
-            )
-            if has_rejection_label:
-                continue
                 
             results = check_required_labels(pr, label_config, 'prs')
             missing_categories = [cat for cat, has_label in results.items() if not has_label]
