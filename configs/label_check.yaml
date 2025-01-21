@@ -29,6 +29,11 @@ prs:
     - PRIORITY_MEDIUM
     - PRIORITY_HIGH
     - PRIORITY_SATANIC
+  category:
+    - syst_nav2
+    - syst_wireless_station
+    - syst_teleoperation
+    - syst_other
   documentation:
     - doc_done
     - doc_no_req
