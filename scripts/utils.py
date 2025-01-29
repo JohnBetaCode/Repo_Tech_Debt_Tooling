@@ -2092,12 +2092,11 @@ if __name__ == "__main__":
                 print(f"Error loading label_check.yaml: {str(e)}")
                 exit(1)
 
-            create_label_analysis_charts(
+            label_analysis_data = get_label_analysis_data(
                 issues_data=issues_data,
                 start_date=args.start_date,
                 end_date=args.end_date,
                 label_config=label_config,
-                save_path="/workspace/tmp"
             )
         
         # --------------------------------------------------------------
@@ -2171,8 +2170,6 @@ if __name__ == "__main__":
         if not args.start_date or not args.end_date:
             print("Error: start-date and end-date are required for prs report")
             exit(1)
-            
-        
 
     elif args.report_type == 'label-check':
         if not args.start_date or not args.end_date:
