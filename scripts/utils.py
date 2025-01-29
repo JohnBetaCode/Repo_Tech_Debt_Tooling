@@ -1786,7 +1786,7 @@ def get_label_analysis_data(
 ) -> dict:
     """
     Analyzes issues based on label categories defined in label_check.yaml.
-    For each category and subcategory, counts open and closed issues.
+    For each week between start_date and end_date, counts open and closed issues.
 
     Args:
         issues_data (list): List of GitHub issues
@@ -1795,59 +1795,82 @@ def get_label_analysis_data(
         label_config (dict): Configuration from label_check.yaml
 
     Returns:
-        dict: Dictionary containing analysis data for each category
+        dict: Dictionary containing analysis data for each week
         Example:
         {
-            'category': {
-                'syst_nav2': {'open': 5, 'closed': 3},
-                'syst_wireless_station': {'open': 2, 'closed': 1},
-                ...
+            '24-01': {  # year-week
+                'category': {
+                    'syst_nav2': {'open': 5, 'closed': 3},
+                    'syst_wireless_station': {'open': 2, 'closed': 1},
+                    ...
+                },
+                'type': {
+                    '#type_feature': {'open': 3, 'closed': 2},
+                    '#type_bug': {'open': 4, 'closed': 1},
+                    ...
+                }
             },
-            'type': {
-                '#type_feature': {'open': 3, 'closed': 2},
-                '#type_bug': {'open': 4, 'closed': 1},
+            '24-02': {
                 ...
-            },
-            ...
+            }
         }
     """
     # Convert string dates to datetime objects
     start_date_obj = datetime.strptime(start_date, "%Y-%m-%d").date()
     end_date_obj = datetime.strptime(end_date, "%Y-%m-%d").date()
 
-    # Get issues created within the date range
-    issues_in_range = get_issues_created_between_dates(issues_data, start_date, end_date)
-
     # Initialize results dictionary
     results = {}
-
-    # Process each category defined in label_config['issues']
-    for category, labels in label_config.get('issues', {}).items():
-        results[category] = {}
+    
+    # Generate list of weeks between start_date and end_date
+    current_date = start_date_obj
+    while current_date <= end_date_obj:
+        year, week, _ = current_date.isocalendar()
+        week_start = get_week_start_date(year, week)
+        week_end = get_week_end_date(year, week)
         
-        # Initialize counters for each label in this category
-        for label in labels:
-            results[category][label] = {'open': 0, 'closed': 0}
+        # Create week key in format 'YY-WW'
+        week_key = f"{str(year)[-2:]}-{str(week).zfill(2)}"
+        results[week_key] = {}
 
-        # Count issues for each label
-        for issue in issues_in_range:
-            issue_labels = [label['name'] for label in issue.get('labels', [])]
-            
-            # Check which labels from this category are present in the issue
-            matching_labels = [label for label in labels if label in issue_labels]
-            
-            # For each matching label, increment the appropriate counter
-            for label in matching_labels:
-                if issue['state'] == 'open':
-                    results[category][label]['open'] += 1
-                else:
-                    results[category][label]['closed'] += 1
+        # Get open issues up to this week's end
+        open_issues = get_open_issues_up_to_date(issues_data, week_end)
+        closed_issues = get_issues_closed_between_dates(issues_data, week_start, week_end)
 
-    # Add category totals
-    for category in results:
-        total_open = sum(label_data['open'] for label_data in results[category].values())
-        total_closed = sum(label_data['closed'] for label_data in results[category].values())
-        results[category]['total'] = {'open': total_open, 'closed': total_closed}
+        # Process each category defined in label_config['issues']
+        for category, labels in label_config.get('issues', {}).items():
+            results[week_key][category] = {}
+            
+            # Initialize counters for each label in this category
+            for label in labels:
+                results[week_key][category][label] = {'open': 0, 'closed': 0}
+
+            # Count open issues for each label
+            for issue in open_issues:
+                issue_labels = [label['name'] for label in issue.get('labels', [])]
+                for label in labels:
+                    if label in issue_labels:
+                        results[week_key][category][label]['open'] += 1
+
+            # Count closed issues for each label
+            for issue in closed_issues:
+                issue_labels = [label['name'] for label in issue.get('labels', [])]
+                for label in labels:
+                    if label in issue_labels:
+                        results[week_key][category][label]['closed'] += 1
+
+            # Add category totals for this week
+            total_open = sum(label_data['open'] 
+                           for label_data in results[week_key][category].values())
+            total_closed = sum(label_data['closed'] 
+                             for label_data in results[week_key][category].values())
+            results[week_key][category]['total'] = {
+                'open': total_open,
+                'closed': total_closed
+            }
+
+        # Move to next week
+        current_date += timedelta(days=7)
 
     return results
 
