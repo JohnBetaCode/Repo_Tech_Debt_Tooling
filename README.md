@@ -96,6 +96,15 @@ excluded_users:
   - user2
 ```
 
+Alternatively, you can specify users to include in the analysis by adding them to the `included_users` list:
+```yaml
+included_users:
+  - user1
+  - user2
+```
+
+
+
 ### Authentication
 Create `configs/secrets.sh` with your GitHub credentials or ask to your manager for it:
 ```bash
