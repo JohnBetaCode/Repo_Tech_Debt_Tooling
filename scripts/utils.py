@@ -1778,6 +1778,80 @@ def check_required_labels(item: dict, required_labels: dict, item_type: str) -> 
     return results
 
 
+def get_label_analysis_data(
+    issues_data: list,
+    start_date: str,
+    end_date: str,
+    label_config: dict,
+) -> dict:
+    """
+    Analyzes issues based on label categories defined in label_check.yaml.
+    For each category and subcategory, counts open and closed issues.
+
+    Args:
+        issues_data (list): List of GitHub issues
+        start_date (str): Start date in 'YYYY-MM-DD' format
+        end_date (str): End date in 'YYYY-MM-DD' format
+        label_config (dict): Configuration from label_check.yaml
+
+    Returns:
+        dict: Dictionary containing analysis data for each category
+        Example:
+        {
+            'category': {
+                'syst_nav2': {'open': 5, 'closed': 3},
+                'syst_wireless_station': {'open': 2, 'closed': 1},
+                ...
+            },
+            'type': {
+                '#type_feature': {'open': 3, 'closed': 2},
+                '#type_bug': {'open': 4, 'closed': 1},
+                ...
+            },
+            ...
+        }
+    """
+    # Convert string dates to datetime objects
+    start_date_obj = datetime.strptime(start_date, "%Y-%m-%d").date()
+    end_date_obj = datetime.strptime(end_date, "%Y-%m-%d").date()
+
+    # Get issues created within the date range
+    issues_in_range = get_issues_created_between_dates(issues_data, start_date, end_date)
+
+    # Initialize results dictionary
+    results = {}
+
+    # Process each category defined in label_config['issues']
+    for category, labels in label_config.get('issues', {}).items():
+        results[category] = {}
+        
+        # Initialize counters for each label in this category
+        for label in labels:
+            results[category][label] = {'open': 0, 'closed': 0}
+
+        # Count issues for each label
+        for issue in issues_in_range:
+            issue_labels = [label['name'] for label in issue.get('labels', [])]
+            
+            # Check which labels from this category are present in the issue
+            matching_labels = [label for label in labels if label in issue_labels]
+            
+            # For each matching label, increment the appropriate counter
+            for label in matching_labels:
+                if issue['state'] == 'open':
+                    results[category][label]['open'] += 1
+                else:
+                    results[category][label]['closed'] += 1
+
+    # Add category totals
+    for category in results:
+        total_open = sum(label_data['open'] for label_data in results[category].values())
+        total_closed = sum(label_data['closed'] for label_data in results[category].values())
+        results[category]['total'] = {'open': total_open, 'closed': total_closed}
+
+    return results
+
+
 # ----------------------------------------------------------------
 if __name__ == "__main__":
 
@@ -2106,6 +2180,26 @@ if __name__ == "__main__":
             end_date=args.end_date,      # Changed from end_week
             save_path="/workspace/tmp"
         )
+
+        # Get the analysis data
+        analysis_data = get_label_analysis_data(
+            issues_data=issues_data,
+            start_date=args.start_date,
+            end_date=args.end_date,
+            label_config=label_config
+        )
+
+        # Print the results
+        for category, data in analysis_data.items():
+            print(f"\n{category.upper()} Analysis:")
+            for label, counts in data.items():
+                if label != 'total':
+                    print(f"  {label}:")
+                    print(f"    Open: {counts['open']}")
+                    print(f"    Closed: {counts['closed']}")
+            print(f"  TOTAL:")
+            print(f"    Open: {data['total']['open']}")
+            print(f"    Closed: {data['total']['closed']}")
 
     elif args.report_type == 'list-pr-issues':
         if not args.start_date or not args.end_date:
