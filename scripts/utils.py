@@ -2197,17 +2197,7 @@ if __name__ == "__main__":
             )
         
             # Print the results
-            for category, data in label_analysis_data.items():
-                print(f"\n{category.upper()} Analysis:")
-                for label, counts in data.items():
-                    if label != 'total':
-                        print(f"  {label}:")
-                        print(f"    Open: {counts['open']}")
-                        print(f"    Closed: {counts['closed']}")
-                print(f"  TOTAL:")
-                print(f"    Open: {data['total']['open']}")
-                print(f"    Closed: {data['total']['closed']}")
-
+            print(print_dict(label_analysis_data))
         
         # --------------------------------------------------------------
         # After creating all graphs, merge them into PDF
