@@ -554,6 +554,34 @@ def create_issues_score_graph(
     print("Graph saved as 'issues_score.png'")
     plt.close()
 
+
+def get_unique_users_from_issues(issues: list) -> list:
+    """
+    Extracts a list of unique usernames from issues' assignees.
+
+    Args:
+        issues (list): List of GitHub issues
+
+    Returns:
+        list: Sorted list of unique usernames who have been assigned to issues
+
+    Example:
+        >>> issues_data = load_issues_from_file(path="/workspace/tmp", filename="issues.json")
+        >>> unique_users = get_unique_users_from_issues(issues_data)
+        >>> print(unique_users)
+        ['user1', 'user2', 'user3']
+    """
+    unique_users = set()
+
+    for issue in issues:
+        # Add assignees only
+        if issue.get("assignees"):
+            for assignee in issue["assignees"]:
+                if assignee.get("login"):
+                    unique_users.add(assignee["login"])
+
+    return sorted(list(unique_users))
+
 def create_user_distribution_charts(
     users_statistics: list,
     end_date: str,
@@ -1933,12 +1961,11 @@ if __name__ == "__main__":
         if os.getenv("PERFORM_USER_ANALYSIS", "true").lower() == "true":
             # Load excluded users from YAML file
             excluded_users = []
-            included_users = []
             try:
+                import yaml
                 with open('configs/exclude_users.yaml', 'r') as file:
                     config = yaml.safe_load(file)
                     excluded_users = config.get('excluded_users', [])
-                    included_users = config.get('included_users', [])
             except Exception as e:
                 print(f"Warning: Could not load excluded users: {str(e)}")
 
@@ -1947,12 +1974,8 @@ if __name__ == "__main__":
             os.makedirs(users_base_path, exist_ok=True)
 
             # Iterate over the weeks for user analysis
-            if len(included_users) > 0:
-                unique_users = [user for user in get_unique_users_from_issues(issues_data) 
-                            if user in included_users]
-            else:
-                unique_users = [user for user in get_unique_users_from_issues(issues_data) 
-                            if user not in excluded_users]
+            unique_users = [user for user in get_unique_users_from_issues(issues_data) 
+                        if user not in excluded_users]
             
             print("\nUnique active users involved in issues:")
             for user in unique_users:
@@ -2057,6 +2080,27 @@ if __name__ == "__main__":
             )            
 
         # --------------------------------------------------------------
+        # Create analysis by label charts
+        if os.getenv("PERFORM_LABEL_ANALYSIS", "false").lower() == "true":
+            
+            try:
+                with open('configs/label_check.yaml', 'r') as file:
+                    label_config = yaml.safe_load(file)
+                    if not isinstance(label_config, dict):
+                        raise ValueError("Invalid label_check.yaml format")
+            except Exception as e:
+                print(f"Error loading label_check.yaml: {str(e)}")
+                exit(1)
+
+            create_label_analysis_charts(
+                issues_data=issues_data,
+                start_date=args.start_date,
+                end_date=args.end_date,
+                label_config=label_config,
+                save_path="/workspace/tmp"
+            )
+        
+        # --------------------------------------------------------------
         # After creating all graphs, merge them into PDF
         create_pdf_report(
             start_date=args.start_date,  # Changed from start_week
@@ -2125,8 +2169,10 @@ if __name__ == "__main__":
 
     elif args.report_type == 'report-prs':
         if not args.start_date or not args.end_date:
-            print("Error: start-date and end-date are required for pr-rejections report")
+            print("Error: start-date and end-date are required for prs report")
             exit(1)
+            
+        
 
     elif args.report_type == 'label-check':
         if not args.start_date or not args.end_date:
@@ -2212,7 +2258,7 @@ if __name__ == "__main__":
         issues_with_problems = len(issues_with_missing_labels)
         prs_with_problems = len(prs_with_missing_labels)
 
-        print("\nSummary:")
+        print(f"\nSummary:")
         if issues_with_problems == 0 and prs_with_problems == 0:
             print(f"\tAll {total_issues + total_prs} items are properly labeled! 🎉 🥳 ✨")
         else:
