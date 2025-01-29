@@ -2173,6 +2173,19 @@ if __name__ == "__main__":
                 label_config=label_config,
             )
         
+            # Print the results
+            for category, data in label_analysis_data.items():
+                print(f"\n{category.upper()} Analysis:")
+                for label, counts in data.items():
+                    if label != 'total':
+                        print(f"  {label}:")
+                        print(f"    Open: {counts['open']}")
+                        print(f"    Closed: {counts['closed']}")
+                print(f"  TOTAL:")
+                print(f"    Open: {data['total']['open']}")
+                print(f"    Closed: {data['total']['closed']}")
+
+        
         # --------------------------------------------------------------
         # After creating all graphs, merge them into PDF
         create_pdf_report(
@@ -2180,26 +2193,6 @@ if __name__ == "__main__":
             end_date=args.end_date,      # Changed from end_week
             save_path="/workspace/tmp"
         )
-
-        # Get the analysis data
-        analysis_data = get_label_analysis_data(
-            issues_data=issues_data,
-            start_date=args.start_date,
-            end_date=args.end_date,
-            label_config=label_config
-        )
-
-        # Print the results
-        for category, data in analysis_data.items():
-            print(f"\n{category.upper()} Analysis:")
-            for label, counts in data.items():
-                if label != 'total':
-                    print(f"  {label}:")
-                    print(f"    Open: {counts['open']}")
-                    print(f"    Closed: {counts['closed']}")
-            print(f"  TOTAL:")
-            print(f"    Open: {data['total']['open']}")
-            print(f"    Closed: {data['total']['closed']}")
 
     elif args.report_type == 'list-pr-issues':
         if not args.start_date or not args.end_date:
