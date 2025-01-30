@@ -554,34 +554,6 @@ def create_issues_score_graph(
     print("Graph saved as 'issues_score.png'")
     plt.close()
 
-
-def get_unique_users_from_issues(issues: list) -> list:
-    """
-    Extracts a list of unique usernames from issues' assignees.
-
-    Args:
-        issues (list): List of GitHub issues
-
-    Returns:
-        list: Sorted list of unique usernames who have been assigned to issues
-
-    Example:
-        >>> issues_data = load_issues_from_file(path="/workspace/tmp", filename="issues.json")
-        >>> unique_users = get_unique_users_from_issues(issues_data)
-        >>> print(unique_users)
-        ['user1', 'user2', 'user3']
-    """
-    unique_users = set()
-
-    for issue in issues:
-        # Add assignees only
-        if issue.get("assignees"):
-            for assignee in issue["assignees"]:
-                if assignee.get("login"):
-                    unique_users.add(assignee["login"])
-
-    return sorted(list(unique_users))
-
 def create_user_distribution_charts(
     users_statistics: list,
     end_date: str,
@@ -2024,11 +1996,12 @@ if __name__ == "__main__":
         if os.getenv("PERFORM_USER_ANALYSIS", "true").lower() == "true":
             # Load excluded users from YAML file
             excluded_users = []
+            included_users = []
             try:
-                import yaml
                 with open('configs/exclude_users.yaml', 'r') as file:
                     config = yaml.safe_load(file)
                     excluded_users = config.get('excluded_users', [])
+                    included_users = config.get('included_users', [])
             except Exception as e:
                 print(f"Warning: Could not load excluded users: {str(e)}")
 
@@ -2037,8 +2010,12 @@ if __name__ == "__main__":
             os.makedirs(users_base_path, exist_ok=True)
 
             # Iterate over the weeks for user analysis
-            unique_users = [user for user in get_unique_users_from_issues(issues_data) 
-                        if user not in excluded_users]
+            if len(included_users) > 0:
+                unique_users = [user for user in get_unique_users_from_issues(issues_data) 
+                            if user in included_users]
+            else:
+                unique_users = [user for user in get_unique_users_from_issues(issues_data) 
+                            if user not in excluded_users]
             
             print("\nUnique active users involved in issues:")
             for user in unique_users:
@@ -2318,7 +2295,7 @@ if __name__ == "__main__":
         issues_with_problems = len(issues_with_missing_labels)
         prs_with_problems = len(prs_with_missing_labels)
 
-        print(f"\nSummary:")
+        print("\nSummary:")
         if issues_with_problems == 0 and prs_with_problems == 0:
             print(f"\tAll {total_issues + total_prs} items are properly labeled! 🎉 🥳 ✨")
         else:
