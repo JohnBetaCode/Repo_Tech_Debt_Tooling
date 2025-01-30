@@ -1349,7 +1349,7 @@ def create_user_scores_graph(
     for i, value in enumerate(closed_scores):
         plt.text(bar_positions_closed[i], value, str(value), ha='center', va='bottom')
     for i, value in enumerate(open_scores):
-        plt.text(x_positions[i], value, str(value), ha='center', va='bottom')
+        plt.text(x_positions[i], value, str(value), ha="center", va="bottom")
 
     plt.title(f"GitHub Issues Priority Scores for {username}")
     plt.xlabel("Week Number")
@@ -1875,6 +1875,68 @@ def get_label_analysis_data(
     return results
 
 
+def print_rejection_history(rejected_prs: list) -> None:
+    """
+    Print a formatted report of PRs with their rejection label history.
+    
+    Args:
+        rejected_prs (list): List of PRs with rejection history
+    """
+    if not rejected_prs:
+        print("No PRs with rejection labels found in the specified date range.")
+        return
+        
+    print("\nPRs with Rejection Label History:")
+    print("=================================")
+    
+    for pr in rejected_prs:
+        print(f"\n[#{pr['number']}] {pr['title']}")
+        print(f"URL: {pr['url']}")
+        print(f"Created: {pr['created_at']}")
+        print(f"Current State: {pr['state']}")
+        print(f"Current Labels: {', '.join(pr['current_labels'])}")
+        print("\nLabel History:")
+        
+        for event in pr['label_history']:
+            action = "Added" if event['action'] == 'labeled' else "Removed"
+            print(f"  • {event['date']}: {action} '{event['label']}'")
+        
+        print("-" * 80)
+
+
+def get_prs_with_rejections(prs_data: list, start_date: str, end_date: str, rejection_labels: list, url: str, accept: str, token: str, save: bool = False) -> list:
+    """
+    Get PRs with rejection labels between two dates.
+    """
+    
+    base_url = "https://api.github.com/repos/kiwicampus/Kronos-Project/issues/3760/timeline"
+    
+    # Set up headers
+    headers = {
+        "Accept": accept,
+        "Authorization": f"Bearer github_pat_{token}",
+    }
+    
+
+    try:
+        response = requests.get(
+            base_url,
+            headers=headers
+        )
+        response.raise_for_status()  
+        events = response.json()
+        for event in events:
+            if event["event"] == "labeled":
+                print(f"Label '{event['label']['name']}' was added by {event['actor']['login']} at {event['created_at']}")
+            elif event["event"] == "unlabeled":
+                print(f"Label '{event['label']['name']}' was removed by {event['actor']['login']} at {event['created_at']}")# Raise an exception for bad status codes
+        
+    except requests.exceptions.RequestException as e:
+        print(f"Error getting data: {str(e)}")
+        return None
+
+    return []
+
 # ----------------------------------------------------------------
 if __name__ == "__main__":
 
@@ -1884,7 +1946,7 @@ if __name__ == "__main__":
         description="Process GitHub issues based on week numbers"
     )
     parser = argparse.ArgumentParser(description="Process GitHub issues and generate reports")
-    parser.add_argument("--report-type", choices=['report-issues', 'report-prs', 'list-pr-issues', 'label-search', 'pr-rejections', 'label-check'], help="Type of report to generate")
+    parser.add_argument("--report-type", choices=['report-issues', 'report-prs', 'list-pr-issues', 'label-search', 'label-check'], help="Type of report to generate")
     parser.add_argument("--start-date", help="Start date for PR-Issues report (YYYY-MM-DD)")
     parser.add_argument("--end-date", help="End date for PR-Issues report (YYYY-MM-DD)")
     parser.add_argument("--label", help="Label to search for")
@@ -1895,8 +1957,8 @@ if __name__ == "__main__":
     GITHUB_API_URL_ISSUES = str(
         os.getenv("GITHUB_API_URL_ISSUES")
     )  # Set this as your desired GitHub API endpoint
-    GITHUB_ACCEPT = str(os.getenv("GITHUB_ACCEPT"))  # Default to GitHub v3 if not set
-    GITHUB_TOKEN = str(os.getenv("GITHUB_TOKEN"))  # Bearer token without the prefix
+    GITHUB_ACCEPT = str(os.getenv("GITHUB_ACCEPT"))     # Default to GitHub v3 if not set
+    GITHUB_TOKEN = str(os.getenv("GITHUB_TOKEN"))       # Bearer token without the prefix
 
     # --------------------------------------------------------------
     # Check if the file exist, otherwise load it
@@ -1907,6 +1969,7 @@ if __name__ == "__main__":
             url=GITHUB_API_URL_ISSUES,
             accept=GITHUB_ACCEPT,
             token=GITHUB_TOKEN,
+            save=True
         )
     if not len(data):
         print("Warning: No data available. Please ensure the data file exists or the API is accessible.")
@@ -2269,8 +2332,28 @@ if __name__ == "__main__":
 
     elif args.report_type == 'report-prs':
         if not args.start_date or not args.end_date:
-            print("Error: start-date and end-date are required for prs report")
+            print("Error: start-date and end-date are required for report-prs")
             exit(1)
+
+                # Load rejection labels from config
+        try:
+            with open('configs/label_check.yaml', 'r') as file:
+                label_config = yaml.safe_load(file)
+                rejection_labels = label_config.get('prs', {}).get('rejection', [])
+                if not rejection_labels:
+                    print("Warning: No rejection labels found in label_check.yaml")
+                    exit(1)
+        except Exception as e:
+            print(f"Error loading label_check.yaml: {str(e)}")
+            exit(1)
+        
+        # Get PRs with rejection labels
+        rejected_prs_data = get_prs_with_rejections(prs_data=prs_data, start_date=args.start_date, end_date=args.end_date, rejection_labels=rejection_labels,
+            url=GITHUB_API_URL_ISSUES,
+            accept=GITHUB_ACCEPT,
+            token=GITHUB_TOKEN,
+        )
+        print(rejected_prs_data)
 
     elif args.report_type == 'label-check':
         if not args.start_date or not args.end_date:
@@ -2364,6 +2447,6 @@ if __name__ == "__main__":
             print(f"\tPRs: {prs_with_problems}/{total_prs} missing required labels")
 
     else:
-        print("Invalid report type. Please use 'list-pr-issues', 'report-issues', 'report-prs', 'label-search', 'pr-rejections', or 'label-check'.")
+        print("Invalid report type. Please use 'list-pr-issues', 'report-issues', 'report-prs', 'label-search', or 'label-check'.")
         exit(1)
     exit()
