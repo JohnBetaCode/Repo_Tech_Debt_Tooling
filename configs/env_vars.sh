@@ -24,4 +24,4 @@ export DELETE_PREVIOUS_REPORT=true
 # Date range for report generation (YYYY-MM-DD format)
 # This is development, save a lot of time, comment out when done
 export REPORT_START_DATE="2024-12-01"
-export REPORT_END_DATE="2025-01-20"
+export REPORT_END_DATE="2025-01-21"
