@@ -1910,7 +1910,10 @@ def get_label_analysis_data(
     end_date_obj = datetime.strptime(end_date, "%Y-%m-%d").date()
 
     # Initialize a dictionary to hold the results
-    results = {}
+    results = {
+        category: {subcategory: {} for subcategory in labels}
+        for category, labels in label_config.items()
+    }
 
     # Generate list of weeks between start_date and end_date
     current_date = start_date_obj
@@ -1918,12 +1921,11 @@ def get_label_analysis_data(
         year, week, _ = current_date.isocalendar()
         week_label = f"{str(year)[-2:]}-{str(week).zfill(2)}"
 
-        # Initialize the week entry if not present
-        if week_label not in results:
-            results[week_label] = {
-                category: {label: 0 for label in labels}
-                for category, labels in label_config.items()
-            }
+        # Initialize the week entry for each subcategory if not present
+        for category, subcategories in results.items():
+            for subcategory in subcategories:
+                if week_label not in results[category][subcategory]:
+                    results[category][subcategory][week_label] = 0
 
         # Move to next week
         current_date += timedelta(days=7)
@@ -1941,31 +1943,25 @@ def get_label_analysis_data(
             ).date()
 
         # Iterate over each week in the results
-        for week_label in results:
-            year, week = map(int, week_label.split("-"))
-            week_start = get_week_start_date(
-                year + 2000, week
-            )  # Adjust year to full format
-            week_end = get_week_end_date(year + 2000, week)
+        for category, subcategories in label_config.items():
+            for subcategory in subcategories:
+                for week_label in results[category][subcategory]:
+                    year, week = map(int, week_label.split("-"))
+                    week_start = get_week_start_date(year + 2000, week)
+                    week_end = get_week_end_date(year + 2000, week)
 
-            # Check if the issue is open during this week
-            if created_at_date <= week_end and (
-                closed_at_date is None or closed_at_date > week_end
-            ):
-                # Check each category and subcategory
-                for category, subcategories in label_config.items():
-                    for subcategory in subcategories:
+                    # Check if the issue is open during this week
+                    if created_at_date <= week_end and (
+                        closed_at_date is None or closed_at_date > week_end
+                    ):
                         # Check if the issue has the subcategory label
                         if any(
                             label["name"] == subcategory
                             for label in issue.get("labels", [])
                         ):
-                            results[week_label][category][subcategory] += 1
+                            results[category][subcategory][week_label] += 1
 
-    # Sort the results by week
-    sorted_results = dict(sorted(results.items()))
-
-    return sorted_results
+    return results
 
 
 def print_rejection_history(rejected_prs: list) -> None:
