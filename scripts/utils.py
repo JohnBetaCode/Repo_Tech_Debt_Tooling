@@ -2038,11 +2038,47 @@ def get_prs_with_rejections(
     return []
 
 
-def create_label_analysis_category_graphs(
-    label_analysis_data: dict, save_path: str = "/workspace/tmp"
-) -> None:
-    return
+def create_label_analysis_category_graphs(label_analysis_data: dict, save_path: str = "/workspace/tmp") -> None:
+    """
+    Creates and saves stacked bar charts for each category and subcategory in the label analysis data.
 
+    Args:
+        label_analysis_data (dict): Dictionary containing label analysis data.
+        save_path (str): Directory to save the graphs.
+    """
+    for category, subcategories in label_analysis_data.items():
+        # Prepare data for plotting
+        weeks = list(next(iter(subcategories.values())).keys())
+        subcategory_names = list(subcategories.keys())
+        data = np.array([list(subcategories[sub].values()) for sub in subcategory_names])
+
+        # Create the stacked bar chart
+        fig, ax = plt.subplots(figsize=(12, 6))
+        bottom = np.zeros(len(weeks))
+
+        for i, subcategory in enumerate(subcategory_names):
+            ax.bar(
+                weeks,
+                data[i],
+                label=subcategory,
+                bottom=bottom,
+                alpha=0.7
+            )
+            bottom += data[i]
+
+        # Add labels and title
+        ax.set_xlabel("Week Number")
+        ax.set_ylabel("Count")
+        ax.set_title(f"Label Analysis for {category}")
+        ax.set_xticks(range(len(weeks)))
+        ax.set_xticklabels(weeks, rotation=45)
+        ax.legend()
+
+        # Save the plot
+        filename = f"{category}_label_analysis.png"
+        plt.savefig(os.path.join(save_path, filename), bbox_inches="tight", dpi=300)
+        print(f"Graph saved as '{filename}'")
+        plt.close()
 
 def get_non_closed_issues_by_category(issues: list, label_config: dict) -> dict:
     """
@@ -2425,7 +2461,7 @@ if __name__ == "__main__":
             print(label_analysis_data)
 
             # Create weekly category graphs
-            # create_label_analysis_category_graphs(label_analysis_data)
+            create_label_analysis_category_graphs(label_analysis_data)
 
             today_issues = get_non_closed_issues_by_category(
                 issues=issues_data,
