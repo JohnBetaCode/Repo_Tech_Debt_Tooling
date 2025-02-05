@@ -1905,7 +1905,45 @@ def get_label_analysis_data(
     end_date: str,
     label_config: dict,
 ) -> dict:
-    return {}
+    # Convert string dates to datetime objects
+    start_date_obj = datetime.strptime(start_date, "%Y-%m-%d").date()
+    end_date_obj = datetime.strptime(end_date, "%Y-%m-%d").date()
+
+    # Initialize a dictionary to hold the results
+    results = {}
+
+    # Iterate over each issue
+    for issue in issues_data:
+        # Skip closed issues
+        if issue["state"] == "closed":
+            continue
+
+        # Parse the created_at date
+        created_at_date = datetime.strptime(issue["created_at"], "%Y-%m-%dT%H:%M:%SZ").date()
+
+        # Check if the issue was created within the date range
+        if not (start_date_obj <= created_at_date <= end_date_obj):
+            continue
+
+        # Get the week number and year
+        year, week, _ = created_at_date.isocalendar()
+        week_label = f"{str(year)[-2:]}-{str(week).zfill(2)}"
+
+        # Initialize the week entry if not present
+        if week_label not in results:
+            results[week_label] = {category: {label: 0 for label in labels} for category, labels in label_config.items()}
+
+        # Check each category and subcategory
+        for category, subcategories in label_config.items():
+            for subcategory in subcategories:
+                # Check if the issue has the subcategory label
+                if any(label["name"] == subcategory for label in issue.get("labels", [])):
+                    results[week_label][category][subcategory] += 1
+
+    # Sort the results by week
+    sorted_results = dict(sorted(results.items()))
+
+    return sorted_results
 
 
 def print_rejection_history(rejected_prs: list) -> None:
