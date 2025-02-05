@@ -104,14 +104,18 @@ def load_issues_from_file(path: str, filename: str, max_age_days: int = 5):
     file_path = os.path.join(path, filename)
     if os.path.isfile(file_path):
         # Check file age
-        file_age = (datetime.now() - datetime.fromtimestamp(os.path.getmtime(file_path))).days
+        file_age = (
+            datetime.now() - datetime.fromtimestamp(os.path.getmtime(file_path))
+        ).days
         if file_age <= max_age_days:
             with open(file_path, "r") as f:
                 issues = json.load(f)
             print(f"Issues loaded from {file_path} (file age: {file_age} days)")
             return issues
         else:
-            print(f"{file_path} is {file_age} days old (max age: {max_age_days} days). Will download fresh data.")
+            print(
+                f"{file_path} is {file_age} days old (max age: {max_age_days} days). Will download fresh data."
+            )
             return []
     else:
         print(f"{file_path} does not exist. Will download fresh data.")
@@ -316,11 +320,7 @@ def categorize_issues_by_priority(issues: list, priority_scores: dict) -> dict:
     """
     # Initialize categories dictionary using the priority_scores structure
     categories = {
-        priority: {
-            "total_score": 0,
-            "issue_count": 0,
-            "color": config['color']
-        }
+        priority: {"total_score": 0, "issue_count": 0, "color": config["color"]}
         for priority, config in priority_scores.items()
     }
 
@@ -331,7 +331,7 @@ def categorize_issues_by_priority(issues: list, priority_scores: dict) -> dict:
         for label in issue.get("labels", []):
             label_name = label.get("name", "")
             if label_name in priority_scores:
-                weight = priority_scores[label_name]['weight']
+                weight = priority_scores[label_name]["weight"]
                 categories[label_name]["total_score"] += weight
                 categories[label_name]["issue_count"] += 1
                 priority_found = True
@@ -445,9 +445,9 @@ def create_issues_score_graph(
     """
     # Load color scale configuration
     try:
-        with open('configs/color_scale_config.yaml', 'r') as file:
+        with open("configs/color_scale_config.yaml", "r") as file:
             config = yaml.safe_load(file)
-            color_scales = config['color_scale']
+            color_scales = config["color_scale"]
     except Exception as e:
         print(f"Warning: Could not load color scale configuration: {str(e)}")
         color_scales = []
@@ -463,33 +463,49 @@ def create_issues_score_graph(
         year, week, _ = current_date.isocalendar()
         week_start = get_week_start_date(year, week)
         week_end = get_week_end_date(year, week)
-        
+
         # Get issues for each category
         open_issues = get_open_issues_up_to_date(issues_data, week_end)
-        created_issues = get_issues_created_between_dates(issues_data, week_start, week_end)
-        closed_issues = get_issues_closed_between_dates(issues_data, week_start, week_end)
+        created_issues = get_issues_created_between_dates(
+            issues_data, week_start, week_end
+        )
+        closed_issues = get_issues_closed_between_dates(
+            issues_data, week_start, week_end
+        )
 
         # Calculate scores for each category
         open_categories = categorize_issues_by_priority(open_issues, priority_scores)
-        created_categories = categorize_issues_by_priority(created_issues, priority_scores)
-        closed_categories = categorize_issues_by_priority(closed_issues, priority_scores)
+        created_categories = categorize_issues_by_priority(
+            created_issues, priority_scores
+        )
+        closed_categories = categorize_issues_by_priority(
+            closed_issues, priority_scores
+        )
 
         # Sum up total scores
-        weeks_data.append({
-            'week_label': f"{str(year)[-2:]}-{str(week).zfill(2)}",
-            'open_score': sum(cat["total_score"] for cat in open_categories.values()),
-            'created_score': sum(cat["total_score"] for cat in created_categories.values()),
-            'closed_score': sum(cat["total_score"] for cat in closed_categories.values())
-        })
-        
+        weeks_data.append(
+            {
+                "week_label": f"{str(year)[-2:]}-{str(week).zfill(2)}",
+                "open_score": sum(
+                    cat["total_score"] for cat in open_categories.values()
+                ),
+                "created_score": sum(
+                    cat["total_score"] for cat in created_categories.values()
+                ),
+                "closed_score": sum(
+                    cat["total_score"] for cat in closed_categories.values()
+                ),
+            }
+        )
+
         # Move to next week
         current_date += timedelta(days=7)
 
     # Extract data for plotting
-    weeks = [data['week_label'] for data in weeks_data]
-    open_scores = [data['open_score'] for data in weeks_data]
-    created_scores = [data['created_score'] for data in weeks_data]
-    closed_scores = [data['closed_score'] for data in weeks_data]
+    weeks = [data["week_label"] for data in weeks_data]
+    open_scores = [data["open_score"] for data in weeks_data]
+    created_scores = [data["created_score"] for data in weeks_data]
+    closed_scores = [data["closed_score"] for data in weeks_data]
 
     # Create the visualization
     fig, ax = plt.subplots(figsize=(12, 6))
@@ -497,37 +513,58 @@ def create_issues_score_graph(
     # Add background color zones if configuration is available
     if color_scales:
         max_score = max(max(open_scores), max(created_scores), max(closed_scores))
-        y_max = max(max_score * 1.2, color_scales[-1]['range'][1])
-        
+        y_max = max(max_score * 1.2, color_scales[-1]["range"][1])
+
         for scale in color_scales:
-            range_min, range_max = scale['range']
+            range_min, range_max = scale["range"]
             rect = Rectangle(
                 (-0.5, range_min),
                 len(weeks),
                 range_max - range_min,
-                facecolor=scale['color'],
+                facecolor=scale["color"],
                 alpha=0.2,
-                zorder=0
+                zorder=0,
             )
             ax.add_patch(rect)
-            
+
             ax.text(
                 len(weeks) + 0.6,
                 (range_min + range_max) / 2,
-                scale['name'],
-                verticalalignment='center',
-                fontsize=8
+                scale["name"],
+                verticalalignment="center",
+                fontsize=8,
             )
 
     # Plot bars and line
     bar_width = 0.35
     x_positions = range(len(weeks))
-    bar_positions_created = [x - bar_width/2 for x in x_positions]
-    bar_positions_closed = [x + bar_width/2 for x in x_positions]
+    bar_positions_created = [x - bar_width / 2 for x in x_positions]
+    bar_positions_closed = [x + bar_width / 2 for x in x_positions]
 
-    plt.bar(bar_positions_created, created_scores, bar_width, label="Created Issues Score", color="r", alpha=0.6)
-    plt.bar(bar_positions_closed, closed_scores, bar_width, label="Closed Issues Score", color="g", alpha=0.6)
-    plt.plot(x_positions, open_scores, "b:", label="Open Issues Score at week end", marker="o", linewidth=2)
+    plt.bar(
+        bar_positions_created,
+        created_scores,
+        bar_width,
+        label="Created Issues Score",
+        color="r",
+        alpha=0.6,
+    )
+    plt.bar(
+        bar_positions_closed,
+        closed_scores,
+        bar_width,
+        label="Closed Issues Score",
+        color="g",
+        alpha=0.6,
+    )
+    plt.plot(
+        x_positions,
+        open_scores,
+        "b:",
+        label="Open Issues Score at week end",
+        marker="o",
+        linewidth=2,
+    )
 
     # Add value labels
     for i, value in enumerate(created_scores):
@@ -550,7 +587,9 @@ def create_issues_score_graph(
         plt.ylim(0, y_max)
 
     # Save the plot
-    plt.savefig(os.path.join(save_path, "issues_score.png"), bbox_inches="tight", dpi=300)
+    plt.savefig(
+        os.path.join(save_path, "issues_score.png"), bbox_inches="tight", dpi=300
+    )
     print("Graph saved as 'issues_score.png'")
     plt.close()
 
@@ -582,10 +621,9 @@ def get_unique_users_from_issues(issues: list) -> list:
 
     return sorted(list(unique_users))
 
+
 def create_user_distribution_charts(
-    users_statistics: list,
-    end_date: str,
-    save_path: str = "/workspace/tmp"
+    users_statistics: list, end_date: str, save_path: str = "/workspace/tmp"
 ) -> None:
     """
     Creates two side-by-side pie charts showing the distribution of issues and scores among users
@@ -605,9 +643,9 @@ def create_user_distribution_charts(
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 8))
 
     # Extract data for plotting
-    usernames = [stat['username'] for stat in users_statistics]
-    open_issues = [stat['open_issues'] for stat in users_statistics]
-    total_scores = [stat['total_score'] for stat in users_statistics]
+    usernames = [stat["username"] for stat in users_statistics]
+    open_issues = [stat["open_issues"] for stat in users_statistics]
+    total_scores = [stat["total_score"] for stat in users_statistics]
 
     # Calculate total values for percentage calculation
     total_issues = sum(open_issues)
@@ -615,27 +653,29 @@ def create_user_distribution_charts(
 
     # Create labels with both count and percentage for issues
     issue_labels = [
-        f'{user}\n({issues} issues)\n({issues/total_issues*100:.1f}%)'
-        if issues > 0 else ''
+        (
+            f"{user}\n({issues} issues)\n({issues/total_issues*100:.1f}%)"
+            if issues > 0
+            else ""
+        )
         for user, issues in zip(usernames, open_issues)
     ]
 
     # Create labels with both score and percentage for scores
     score_labels = [
-        f'{user}\n({score} points)\n({score/total_score*100:.1f}%)'
-        if score > 0 else ''
+        f"{user}\n({score} points)\n({score/total_score*100:.1f}%)" if score > 0 else ""
         for user, score in zip(usernames, total_scores)
     ]
 
     # Remove empty labels and corresponding data
     issues_data = [(i, l) for i, l in zip(open_issues, issue_labels) if i > 0]
     scores_data = [(s, l) for s, l in zip(total_scores, score_labels) if s > 0]
-    
+
     if issues_data:
         values_issues, labels_issues = zip(*issues_data)
     else:
         values_issues, labels_issues = [], []
-    
+
     if scores_data:
         values_scores, labels_scores = zip(*scores_data)
     else:
@@ -646,20 +686,22 @@ def create_user_distribution_charts(
         wedges1, texts1, autotexts1 = ax1.pie(
             values_issues,
             labels=labels_issues,
-            autopct='',  # We already include percentages in labels
-            startangle=90
+            autopct="",  # We already include percentages in labels
+            startangle=90,
         )
-    ax1.set_title(f'Issues Distribution - Week {end_date}\nTotal Issues: {total_issues}')
+    ax1.set_title(
+        f"Issues Distribution - Week {end_date}\nTotal Issues: {total_issues}"
+    )
 
     # Plot scores distribution
     if values_scores:
         wedges2, texts2, autotexts2 = ax2.pie(
             values_scores,
             labels=labels_scores,
-            autopct='',  # We already include percentages in labels
-            startangle=90
+            autopct="",  # We already include percentages in labels
+            startangle=90,
         )
-    ax2.set_title(f'Score Distribution - Week {end_date}\nTotal Score: {total_score}')
+    ax2.set_title(f"Score Distribution - Week {end_date}\nTotal Score: {total_score}")
 
     # Add warning text at the bottom of the figure
     warning_text = (
@@ -667,12 +709,13 @@ def create_user_distribution_charts(
         "The total sum might exceed the individual issue counts due to shared assignments."
     )
     plt.figtext(
-        0.5, 0.02,  # x, y position
+        0.5,
+        0.02,  # x, y position
         warning_text,
-        ha='center',
-        color='red',
-        style='italic',
-        bbox=dict(facecolor='white', alpha=0.8, edgecolor='none')
+        ha="center",
+        color="red",
+        style="italic",
+        bbox=dict(facecolor="white", alpha=0.8, edgecolor="none"),
     )
 
     # Adjust subplot parameters to make room for the warning text
@@ -680,9 +723,9 @@ def create_user_distribution_charts(
 
     # Save the plot
     plt.savefig(
-        os.path.join(save_path, f'user_distribution_week_{end_date}.png'),
-        bbox_inches='tight',
-        dpi=300
+        os.path.join(save_path, f"user_distribution_week_{end_date}.png"),
+        bbox_inches="tight",
+        dpi=300,
     )
     print(f"User distribution charts saved for week {end_date}")
     plt.close()
@@ -704,10 +747,9 @@ def get_unique_users_from_issues(issues_data: list) -> list:
             unique_users.add(assignee.get("login"))
     return sorted(list(unique_users))
 
+
 def create_pdf_report(
-    start_date: str,
-    end_date: str,
-    save_path: str = "/workspace/tmp"
+    start_date: str, end_date: str, save_path: str = "/workspace/tmp"
 ) -> None:
     try:
         # Get dates for filename
@@ -715,27 +757,29 @@ def create_pdf_report(
         end_date_obj = datetime.strptime(end_date, "%Y-%m-%d").date()
 
         # Get current time in configured timezone
-        tz = pytz.timezone(os.getenv('REPORT_TIMEZONE', 'America/New_York'))  # Fallback to EST/EDT if not set
+        tz = pytz.timezone(
+            os.getenv("REPORT_TIMEZONE", "America/New_York")
+        )  # Fallback to EST/EDT if not set
         current_time = datetime.now(tz)
         header_text = f"Report generated on {current_time.strftime('%Y-%m-%d %H:%M:%S')} {tz.zone}"
 
         # Create filename
-        pdf_filename = (
-            f"tech_debt_report_{start_date}_to_{end_date}.pdf"
-        )
+        pdf_filename = f"tech_debt_report_{start_date}_to_{end_date}.pdf"
         pdf_path = os.path.join(save_path, pdf_filename)
 
         # Define the order of PNG files
         ordered_png_files = [
-            'issues_activity.png',
-            'issues_score.png',
-            'issues_priority_levels.png',
-            f'user_distribution_week_{end_date}.png'
+            "issues_activity.png",
+            "issues_score.png",
+            "issues_priority_levels.png",
+            f"user_distribution_week_{end_date}.png",
         ]
 
         # Filter existing PNG files while maintaining order
-        png_files = [f for f in ordered_png_files if os.path.exists(os.path.join(save_path, f))]
-        
+        png_files = [
+            f for f in ordered_png_files if os.path.exists(os.path.join(save_path, f))
+        ]
+
         if not png_files:
             print("No PNG files found to merge")
             return
@@ -770,14 +814,16 @@ def create_pdf_report(
 
         # Create the final image
         final_image = Image.new("RGB", (LETTER_WIDTH, total_height), "white")
-        
+
         # Add header text
         draw = ImageDraw.Draw(final_image)
         try:
-            font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 36)
+            font = ImageFont.truetype(
+                "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 36
+            )
         except:
             font = ImageFont.load_default()
-        
+
         # Calculate text position to center it
         text_bbox = draw.textbbox((0, 0), header_text, font=font)
         text_width = text_bbox[2] - text_bbox[0]
@@ -829,56 +875,60 @@ def create_issues_score_levels_graph(
     # Generate list of weeks between start_date and end_date
     current_date = start_date_obj
     weeks_data = []
-    
+
     while current_date <= end_date_obj:
         year, week, _ = current_date.isocalendar()
         week_start = get_week_start_date(year, week)
         week_end = get_week_end_date(year, week)
-        
+
         # Get open issues for this week
         open_issues = get_open_issues_up_to_date(issues_data, week_end)
         categories = categorize_issues_by_priority(open_issues, priority_scores)
-        
-        weeks_data.append({
-            'week_label': f"{str(year)[-2:]}-{str(week).zfill(2)}",
-            'categories': categories
-        })
-        
+
+        weeks_data.append(
+            {
+                "week_label": f"{str(year)[-2:]}-{str(week).zfill(2)}",
+                "categories": categories,
+            }
+        )
+
         # Move to next week
         current_date += timedelta(days=7)
 
     # Extract data for plotting
-    weeks = [data['week_label'] for data in weeks_data]
+    weeks = [data["week_label"] for data in weeks_data]
     priority_data = {priority: [] for priority in priority_scores.keys()}
 
     # Collect counts for each priority level
     for week_data in weeks_data:
         for priority in priority_scores.keys():
-            priority_data[priority].append(week_data['categories'][priority]["issue_count"])
+            priority_data[priority].append(
+                week_data["categories"][priority]["issue_count"]
+            )
 
     # Create the visualization with dual x-axes
     fig, ax1 = plt.subplots(figsize=(15, 8))
 
     # Create stacked bar chart on primary axis
     bottom = np.zeros(len(weeks))
-    
+
     for priority, counts in priority_data.items():
         ax1.bar(
             range(len(weeks)),
             counts,
             bottom=bottom,
             label=priority,
-            color=priority_scores[priority]['color'],
-            alpha=0.7
+            color=priority_scores[priority]["color"],
+            alpha=0.7,
         )
-        
+
         # Add value labels if count > 0
         for i, count in enumerate(counts):
             if count > 0:
                 # Position the text in the middle of its segment
                 height = bottom[i] + (count / 2)
-                ax1.text(i, height, str(count), ha='center', va='center')
-        
+                ax1.text(i, height, str(count), ha="center", va="center")
+
         bottom += np.array(counts)
 
     # Set up the primary x-axis (weeks)
@@ -886,30 +936,28 @@ def create_issues_score_levels_graph(
     ax1.set_xticks(range(len(weeks)))
     ax1.set_xticklabels(weeks, rotation=45)
     ax1.set_xlabel("Week Number")
-    
+
     plt.title("GitHub Issues by Priority Level per Week")
     ax1.set_ylabel("Number of Issues")
     ax1.grid(True, linestyle="--", alpha=0.7)
-    ax1.legend(loc='upper left')
+    ax1.legend(loc="upper left")
 
     # Save the plot
     plt.savefig(
         os.path.join(save_path, "issues_priority_levels.png"),
         bbox_inches="tight",
-        dpi=300
+        dpi=300,
     )
     print("Graph saved as 'issues_priority_levels.png'")
     plt.close()
 
 
 def create_users_pdf_report(
-    start_date: str,
-    end_date: str,
-    save_path: str = "/workspace/tmp"
+    start_date: str, end_date: str, save_path: str = "/workspace/tmp"
 ) -> None:
     """
     Creates a single PDF report with title page, index, and one page per user containing all their graphs.
-    
+
     Args:
         start_date (str): Start date in YYYY-MM-DD format
         end_date (str): End date in YYYY-MM-DD format
@@ -945,10 +993,7 @@ def create_users_pdf_report(
             if os.path.isdir(user_path):
                 user_pngs = sorted(glob.glob(os.path.join(user_path, "*.png")))
                 if user_pngs:
-                    users_data.append({
-                        'username': user_dir,
-                        'images': user_pngs
-                    })
+                    users_data.append({"username": user_dir, "images": user_pngs})
 
         if not users_data:
             print("No user PNG files found")
@@ -960,11 +1005,15 @@ def create_users_pdf_report(
         # Create title page
         title_page = Image.new("RGB", (LETTER_WIDTH, LETTER_HEIGHT), "white")
         draw = ImageDraw.Draw(title_page)
-        
+
         # Try to load a font, fall back to default if not available
         try:
-            title_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 60)
-            regular_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 40)
+            title_font = ImageFont.truetype(
+                "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 60
+            )
+            regular_font = ImageFont.truetype(
+                "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 40
+            )
         except:
             title_font = ImageFont.load_default()
             regular_font = ImageFont.load_default()
@@ -973,32 +1022,52 @@ def create_users_pdf_report(
         title = "GitHub Issues Report"
         subtitle = f"Weeks {start_date} to {end_date}"
         date_range = f"({start_date} - {end_date})"
-        
+
         # Calculate text positions for centering
         title_bbox = draw.textbbox((0, 0), title, font=title_font)
         subtitle_bbox = draw.textbbox((0, 0), subtitle, font=regular_font)
         date_bbox = draw.textbbox((0, 0), date_range, font=regular_font)
-        
+
         title_width = title_bbox[2] - title_bbox[0]
         subtitle_width = subtitle_bbox[2] - subtitle_bbox[0]
         date_width = date_bbox[2] - date_bbox[0]
-        
-        draw.text(((LETTER_WIDTH - title_width) // 2, LETTER_HEIGHT // 3), title, font=title_font, fill="black")
-        draw.text(((LETTER_WIDTH - subtitle_width) // 2, LETTER_HEIGHT // 2), subtitle, font=regular_font, fill="black")
-        draw.text(((LETTER_WIDTH - date_width) // 2, LETTER_HEIGHT // 2 + 100), date_range, font=regular_font, fill="black")
-        
+
+        draw.text(
+            ((LETTER_WIDTH - title_width) // 2, LETTER_HEIGHT // 3),
+            title,
+            font=title_font,
+            fill="black",
+        )
+        draw.text(
+            ((LETTER_WIDTH - subtitle_width) // 2, LETTER_HEIGHT // 2),
+            subtitle,
+            font=regular_font,
+            fill="black",
+        )
+        draw.text(
+            ((LETTER_WIDTH - date_width) // 2, LETTER_HEIGHT // 2 + 100),
+            date_range,
+            font=regular_font,
+            fill="black",
+        )
+
         pages.append(title_page)
 
         # Create index page
         index_page = Image.new("RGB", (LETTER_WIDTH, LETTER_HEIGHT), "white")
         draw = ImageDraw.Draw(index_page)
-        
+
         # Add index title
         index_title = "Index"
         index_bbox = draw.textbbox((0, 0), index_title, font=title_font)
         index_width = index_bbox[2] - index_bbox[0]
-        draw.text(((LETTER_WIDTH - index_width) // 2, MARGIN), index_title, font=title_font, fill="black")
-        
+        draw.text(
+            ((LETTER_WIDTH - index_width) // 2, MARGIN),
+            index_title,
+            font=title_font,
+            fill="black",
+        )
+
         # Add user list
         y_position = MARGIN + 150
         for i, user_data in enumerate(users_data, 1):
@@ -1013,18 +1082,25 @@ def create_users_pdf_report(
             # Create new page for user
             user_page = Image.new("RGB", (LETTER_WIDTH, LETTER_HEIGHT), "white")
             draw = ImageDraw.Draw(user_page)
-            
+
             # Add user title at the top
             user_title = f"User: {user_data['username']}"
             title_bbox = draw.textbbox((0, 0), user_title, font=title_font)
             title_width = title_bbox[2] - title_bbox[0]
-            draw.text(((LETTER_WIDTH - title_width) // 2, MARGIN), user_title, font=title_font, fill="black")
-            
+            draw.text(
+                ((LETTER_WIDTH - title_width) // 2, MARGIN),
+                user_title,
+                font=title_font,
+                fill="black",
+            )
+
             # Calculate layout for three graphs
-            graph_height = (LETTER_HEIGHT - (4 * MARGIN)) // 3  # Divide remaining space by 3
-            
+            graph_height = (
+                LETTER_HEIGHT - (4 * MARGIN)
+            ) // 3  # Divide remaining space by 3
+
             # Process and paste all three graphs
-            for i, image_path in enumerate(user_data['images']):
+            for i, image_path in enumerate(user_data["images"]):
                 img = Image.open(image_path)
                 if img.mode == "RGBA":
                     img = img.convert("RGB")
@@ -1033,7 +1109,7 @@ def create_users_pdf_report(
                 scale = CONTENT_WIDTH / img.width
                 new_width = CONTENT_WIDTH
                 new_height = int(img.height * scale)
-                
+
                 # Further scale if height is too large
                 if new_height > graph_height:
                     scale = graph_height / new_height
@@ -1051,7 +1127,7 @@ def create_users_pdf_report(
 
                 # Center horizontally
                 x_position = (LETTER_WIDTH - new_width) // 2
-                
+
                 # Paste image
                 user_page.paste(img, (x_position, y_position))
 
@@ -1060,28 +1136,23 @@ def create_users_pdf_report(
         # Create output filename and save PDF
         pdf_filename = f"user_reports_{start_date}_to_{end_date}.pdf"
         pdf_path = os.path.join(save_path, pdf_filename)
-        
+
         # Save all pages to PDF
         pages[0].save(
-            pdf_path,
-            "PDF",
-            resolution=DPI,
-            save_all=True,
-            append_images=pages[1:]
+            pdf_path, "PDF", resolution=DPI, save_all=True, append_images=pages[1:]
         )
         print(f"Users PDF report saved at: {pdf_path}")
 
     except ImportError:
-        print("Error: PIL (Pillow) library is required. Install it using: pip install Pillow")
+        print(
+            "Error: PIL (Pillow) library is required. Install it using: pip install Pillow"
+        )
     except Exception as e:
         print(f"Error creating users PDF: {str(e)}")
 
 
 def get_user_weekly_issues(
-    issues_data: list,
-    username: str,
-    start_date: str,
-    end_date: str
+    issues_data: list, username: str, start_date: str, end_date: str
 ) -> list:
     """
     Gets the number of issues assigned to a user for each week between start_date and end_date.
@@ -1106,8 +1177,11 @@ def get_user_weekly_issues(
 
     # Filter issues assigned to the user
     user_issues = [
-        issue for issue in issues_data
-        if any(assignee.get('login') == username for assignee in issue.get('assignees', []))
+        issue
+        for issue in issues_data
+        if any(
+            assignee.get("login") == username for assignee in issue.get("assignees", [])
+        )
     ]
 
     weekly_data = []
@@ -1117,19 +1191,25 @@ def get_user_weekly_issues(
         year, week, _ = current_date.isocalendar()
         week_start = get_week_start_date(year, week)
         week_end = get_week_end_date(year, week)
-        
+
         # Get issues for each category
         open_issues = get_open_issues_up_to_date(user_issues, week_end)
-        created_issues = get_issues_created_between_dates(user_issues, week_start, week_end)
-        closed_issues = get_issues_closed_between_dates(user_issues, week_start, week_end)
+        created_issues = get_issues_created_between_dates(
+            user_issues, week_start, week_end
+        )
+        closed_issues = get_issues_closed_between_dates(
+            user_issues, week_start, week_end
+        )
 
-        weekly_data.append({
-            'week': f"{str(year)[-2:]}-{str(week).zfill(2)}",
-            'open_issues': len(open_issues),
-            'created_issues': len(created_issues),
-            'closed_issues': len(closed_issues)
-        })
-        
+        weekly_data.append(
+            {
+                "week": f"{str(year)[-2:]}-{str(week).zfill(2)}",
+                "open_issues": len(open_issues),
+                "created_issues": len(created_issues),
+                "closed_issues": len(closed_issues),
+            }
+        )
+
         # Move to next week
         current_date += timedelta(days=7)
 
@@ -1151,10 +1231,10 @@ def create_user_issues_graph(
         save_path (str): Directory to save the graph
     """
     # Extract data for plotting
-    weeks = [data['week'] for data in user_weekly_data]
-    open_issues = [data['open_issues'] for data in user_weekly_data]
-    created_issues = [data['created_issues'] for data in user_weekly_data]
-    closed_issues = [data['closed_issues'] for data in user_weekly_data]
+    weeks = [data["week"] for data in user_weekly_data]
+    open_issues = [data["open_issues"] for data in user_weekly_data]
+    created_issues = [data["created_issues"] for data in user_weekly_data]
+    closed_issues = [data["closed_issues"] for data in user_weekly_data]
 
     # Create the visualization
     plt.figure(figsize=(12, 6))
@@ -1162,8 +1242,8 @@ def create_user_issues_graph(
     # Plot bars for created and closed issues
     bar_width = 0.35
     x_positions = range(len(weeks))  # Use numeric positions for x-axis
-    bar_positions_created = [x - bar_width/2 for x in x_positions]
-    bar_positions_closed = [x + bar_width/2 for x in x_positions]
+    bar_positions_created = [x - bar_width / 2 for x in x_positions]
+    bar_positions_closed = [x + bar_width / 2 for x in x_positions]
 
     plt.bar(
         bar_positions_created,
@@ -1171,7 +1251,7 @@ def create_user_issues_graph(
         bar_width,
         label="Created Issues",
         color="g",
-        alpha=0.6
+        alpha=0.6,
     )
     plt.bar(
         bar_positions_closed,
@@ -1179,7 +1259,7 @@ def create_user_issues_graph(
         bar_width,
         label="Closed Issues",
         color="r",
-        alpha=0.6
+        alpha=0.6,
     )
 
     # Plot line for open issues
@@ -1189,16 +1269,16 @@ def create_user_issues_graph(
         "b:",
         label="Open Issues at week end",
         marker="o",
-        linewidth=2
+        linewidth=2,
     )
 
     # Add value labels
     for i, value in enumerate(created_issues):
-        plt.text(bar_positions_created[i], value, str(value), ha='center', va='bottom')
+        plt.text(bar_positions_created[i], value, str(value), ha="center", va="bottom")
     for i, value in enumerate(closed_issues):
-        plt.text(bar_positions_closed[i], value, str(value), ha='center', va='bottom')
+        plt.text(bar_positions_closed[i], value, str(value), ha="center", va="bottom")
     for i, value in enumerate(open_issues):
-        plt.text(x_positions[i], value, str(value), ha='center', va='bottom')
+        plt.text(x_positions[i], value, str(value), ha="center", va="bottom")
 
     plt.title(f"GitHub Issues Activity for {username}")
     plt.xlabel("Week Number")
@@ -1214,7 +1294,7 @@ def create_user_issues_graph(
     plt.savefig(
         os.path.join(save_path, f"{username}_activity.png"),
         bbox_inches="tight",
-        dpi=300
+        dpi=300,
     )
     print(f"Graph saved for user {username}")
     plt.close()
@@ -1251,8 +1331,11 @@ def get_user_weekly_scores(
 
     # Filter issues assigned to the user
     user_issues = [
-        issue for issue in issues_data
-        if any(assignee.get('login') == username for assignee in issue.get('assignees', []))
+        issue
+        for issue in issues_data
+        if any(
+            assignee.get("login") == username for assignee in issue.get("assignees", [])
+        )
     ]
 
     weekly_data = []
@@ -1262,25 +1345,41 @@ def get_user_weekly_scores(
         year, week, _ = current_date.isocalendar()
         week_start = get_week_start_date(year, week)
         week_end = get_week_end_date(year, week)
-        
+
         # Get issues for each category
         open_issues = get_open_issues_up_to_date(user_issues, week_end)
-        created_issues = get_issues_created_between_dates(user_issues, week_start, week_end)
-        closed_issues = get_issues_closed_between_dates(user_issues, week_start, week_end)
+        created_issues = get_issues_created_between_dates(
+            user_issues, week_start, week_end
+        )
+        closed_issues = get_issues_closed_between_dates(
+            user_issues, week_start, week_end
+        )
 
         # Calculate scores for each category
         open_categories = categorize_issues_by_priority(open_issues, priority_scores)
-        created_categories = categorize_issues_by_priority(created_issues, priority_scores)
-        closed_categories = categorize_issues_by_priority(closed_issues, priority_scores)
+        created_categories = categorize_issues_by_priority(
+            created_issues, priority_scores
+        )
+        closed_categories = categorize_issues_by_priority(
+            closed_issues, priority_scores
+        )
 
         # Sum up total scores
-        weekly_data.append({
-            'week': f"{str(year)[-2:]}-{str(week).zfill(2)}",
-            'open_score': sum(cat["total_score"] for cat in open_categories.values()),
-            'created_score': sum(cat["total_score"] for cat in created_categories.values()),
-            'closed_score': sum(cat["total_score"] for cat in closed_categories.values())
-        })
-        
+        weekly_data.append(
+            {
+                "week": f"{str(year)[-2:]}-{str(week).zfill(2)}",
+                "open_score": sum(
+                    cat["total_score"] for cat in open_categories.values()
+                ),
+                "created_score": sum(
+                    cat["total_score"] for cat in created_categories.values()
+                ),
+                "closed_score": sum(
+                    cat["total_score"] for cat in closed_categories.values()
+                ),
+            }
+        )
+
         # Move to next week
         current_date += timedelta(days=7)
 
@@ -1302,10 +1401,10 @@ def create_user_scores_graph(
         save_path (str): Directory to save the graph
     """
     # Extract data for plotting
-    weeks = [data['week'] for data in user_weekly_data]
-    open_scores = [data['open_score'] for data in user_weekly_data]
-    created_scores = [data['created_score'] for data in user_weekly_data]
-    closed_scores = [data['closed_score'] for data in user_weekly_data]
+    weeks = [data["week"] for data in user_weekly_data]
+    open_scores = [data["open_score"] for data in user_weekly_data]
+    created_scores = [data["created_score"] for data in user_weekly_data]
+    closed_scores = [data["closed_score"] for data in user_weekly_data]
 
     # Create the visualization
     plt.figure(figsize=(12, 6))
@@ -1313,8 +1412,8 @@ def create_user_scores_graph(
     # Plot bars for created and closed scores
     bar_width = 0.35
     x_positions = range(len(weeks))  # Use numeric positions for x-axis
-    bar_positions_created = [x - bar_width/2 for x in x_positions]
-    bar_positions_closed = [x + bar_width/2 for x in x_positions]
+    bar_positions_created = [x - bar_width / 2 for x in x_positions]
+    bar_positions_closed = [x + bar_width / 2 for x in x_positions]
 
     plt.bar(
         bar_positions_created,
@@ -1322,7 +1421,7 @@ def create_user_scores_graph(
         bar_width,
         label="Created Issues Score",
         color="r",
-        alpha=0.6
+        alpha=0.6,
     )
     plt.bar(
         bar_positions_closed,
@@ -1330,7 +1429,7 @@ def create_user_scores_graph(
         bar_width,
         label="Closed Issues Score",
         color="g",
-        alpha=0.6
+        alpha=0.6,
     )
 
     # Plot line for open scores
@@ -1340,14 +1439,14 @@ def create_user_scores_graph(
         "b:",
         label="Open Issues Score at week end",
         marker="o",
-        linewidth=2
+        linewidth=2,
     )
 
     # Add value labels
     for i, value in enumerate(created_scores):
-        plt.text(bar_positions_created[i], value, str(value), ha='center', va='bottom')
+        plt.text(bar_positions_created[i], value, str(value), ha="center", va="bottom")
     for i, value in enumerate(closed_scores):
-        plt.text(bar_positions_closed[i], value, str(value), ha='center', va='bottom')
+        plt.text(bar_positions_closed[i], value, str(value), ha="center", va="bottom")
     for i, value in enumerate(open_scores):
         plt.text(x_positions[i], value, str(value), ha="center", va="bottom")
 
@@ -1363,9 +1462,7 @@ def create_user_scores_graph(
 
     # Save the plot
     plt.savefig(
-        os.path.join(save_path, f"{username}_scores.png"),
-        bbox_inches="tight",
-        dpi=300
+        os.path.join(save_path, f"{username}_scores.png"), bbox_inches="tight", dpi=300
     )
     print(f"Score graph saved for user {username}")
     plt.close()
@@ -1398,41 +1495,46 @@ def create_user_priority_levels_graph(
     # Generate list of weeks between start_date and end_date
     current_date = start_date_obj
     weeks_data = []
-    
+
     while current_date <= end_date_obj:
         year, week, _ = current_date.isocalendar()
         week_start = get_week_start_date(year, week)
         week_end = get_week_end_date(year, week)
-        
-        weeks_data.append({
-            'week_label': f"{str(year)[-2:]}-{str(week).zfill(2)}",
-            'week_start': week_start,
-            'week_end': week_end
-        })
-        
+
+        weeks_data.append(
+            {
+                "week_label": f"{str(year)[-2:]}-{str(week).zfill(2)}",
+                "week_start": week_start,
+                "week_end": week_end,
+            }
+        )
+
         # Move to next week
         current_date += timedelta(days=7)
 
     # Filter issues for this user
     user_issues = [
-        issue for issue in issues_data
-        if any(assignee.get('login') == username for assignee in issue.get('assignees', []))
+        issue
+        for issue in issues_data
+        if any(
+            assignee.get("login") == username for assignee in issue.get("assignees", [])
+        )
     ]
 
     # Collect data for each priority level
     priority_data = {priority: [] for priority in priority_scores.keys()}
-    
+
     # Collect data for each week
     for week in weeks_data:
-        open_issues = get_open_issues_up_to_date(user_issues, week['week_end'])
+        open_issues = get_open_issues_up_to_date(user_issues, week["week_end"])
         categories = categorize_issues_by_priority(open_issues, priority_scores)
-        
+
         for priority in priority_data.keys():
             priority_data[priority].append(categories[priority]["issue_count"])
 
     # Create the visualization with dual x-axes
     fig, ax1 = plt.subplots(figsize=(15, 8))
-    
+
     # Create second x-axis for months
     ax2 = ax1.twiny()
 
@@ -1446,53 +1548,53 @@ def create_user_priority_levels_graph(
             counts,
             bottom=bottom,
             label=priority,
-            color=priority_scores[priority]['color'],
-            alpha=0.7
+            color=priority_scores[priority]["color"],
+            alpha=0.7,
         )
-        
+
         # Add value labels if count > 0
         for i, count in enumerate(counts):
             if count > 0:
                 # Position the text in the middle of its segment
                 height = bottom[i] + (count / 2)
-                ax1.text(i, height, str(count), ha='center', va='center')
-        
+                ax1.text(i, height, str(count), ha="center", va="center")
+
         bottom += np.array(counts)
 
     # Set up the primary x-axis (weeks)
-    week_labels = [week['week_label'] for week in weeks_data]
+    week_labels = [week["week_label"] for week in weeks_data]
     ax1.set_xlim(-0.5, len(weeks_data) - 0.5)
     ax1.set_xticks(x_positions)
     ax1.set_xticklabels(week_labels, rotation=45)
     ax1.set_xlabel("Week Number")
-    
+
     # Set up the secondary x-axis (months)
     month_positions = []
     month_labels = []
-    
+
     # Get unique months and their positions
     for i, week in enumerate(weeks_data):
-        month_name = week['week_start'].strftime("%B")
-        
+        month_name = week["week_start"].strftime("%B")
+
         # Only add month if it's not already in labels or if it's the first week
         if not month_labels or month_labels[-1] != month_name:
             month_positions.append(i)
             month_labels.append(month_name)
-    
+
     ax2.set_xlim(ax1.get_xlim())
     ax2.set_xticks(month_positions)
     ax2.set_xticklabels(month_labels)
-    
+
     plt.title(f"GitHub Issues by Priority Level for {username}")
     ax1.set_ylabel("Number of Issues")
     ax1.grid(True, linestyle="--", alpha=0.7)
-    ax1.legend(loc='upper left')
+    ax1.legend(loc="upper left")
 
     # Save the plot
     plt.savefig(
         os.path.join(save_path, f"{username}_priority_levels.png"),
         bbox_inches="tight",
-        dpi=300
+        dpi=300,
     )
     print(f"Priority levels graph saved for user {username}")
     plt.close()
@@ -1515,7 +1617,7 @@ def load_scores_config(path: str, filename: str) -> dict:
     """
     file_path = os.path.join(path, filename)
     try:
-        with open(file_path, 'r') as file:
+        with open(file_path, "r") as file:
             config = yaml.safe_load(file)
             return config
     except FileNotFoundError:
@@ -1557,19 +1659,23 @@ def get_closed_issues_details(issues: list, start_date: str, end_date: str) -> d
             continue
 
         # Parse the closed_at date
-        closed_at_date = datetime.strptime(issue["closed_at"], "%Y-%m-%dT%H:%M:%SZ").date()
+        closed_at_date = datetime.strptime(
+            issue["closed_at"], "%Y-%m-%dT%H:%M:%SZ"
+        ).date()
 
         # Check if the issue was closed within the date range
         if start_date_obj <= closed_at_date <= end_date_obj:
-            closed_issues.append({
-                'title': issue['title'],
-                'closed_at': closed_at_date.strftime("%Y-%m-%d"),
-                'url': issue['html_url']
-            })
+            closed_issues.append(
+                {
+                    "title": issue["title"],
+                    "closed_at": closed_at_date.strftime("%Y-%m-%d"),
+                    "url": issue["html_url"],
+                }
+            )
 
     return {
-        'count': len(closed_issues),
-        'issues': sorted(closed_issues, key=lambda x: x['closed_at'])
+        "count": len(closed_issues),
+        "issues": sorted(closed_issues, key=lambda x: x["closed_at"]),
     }
 
 
@@ -1600,23 +1706,29 @@ def get_created_issues_details(issues: list, start_date: str, end_date: str) -> 
 
     for issue in issues:
         # Parse the created_at date
-        created_at_date = datetime.strptime(issue["created_at"], "%Y-%m-%dT%H:%M:%SZ").date()
+        created_at_date = datetime.strptime(
+            issue["created_at"], "%Y-%m-%dT%H:%M:%SZ"
+        ).date()
 
         # Check if the issue was created within the date range
         if start_date_obj <= created_at_date <= end_date_obj:
-            created_issues.append({
-                'title': issue['title'],
-                'created_at': created_at_date.strftime("%Y-%m-%d"),
-                'url': issue['html_url']
-            })
+            created_issues.append(
+                {
+                    "title": issue["title"],
+                    "created_at": created_at_date.strftime("%Y-%m-%d"),
+                    "url": issue["html_url"],
+                }
+            )
 
     return {
-        'count': len(created_issues),
-        'issues': sorted(created_issues, key=lambda x: x['created_at'])
+        "count": len(created_issues),
+        "issues": sorted(created_issues, key=lambda x: x["created_at"]),
     }
 
 
-def get_issues_by_label(issues: list, label: str, start_date: str, end_date: str) -> dict:
+def get_issues_by_label(
+    issues: list, label: str, start_date: str, end_date: str
+) -> dict:
     """
     Gets issues that have a specific label within a date range.
 
@@ -1651,34 +1763,48 @@ def get_issues_by_label(issues: list, label: str, start_date: str, end_date: str
 
     for issue in issues:
         # Check if the issue has the specified label
-        if any(l['name'] == label for l in issue.get('labels', [])):
+        if any(l["name"] == label for l in issue.get("labels", [])):
             # Parse the created_at date
-            created_at_date = datetime.strptime(issue["created_at"], "%Y-%m-%dT%H:%M:%SZ").date()
+            created_at_date = datetime.strptime(
+                issue["created_at"], "%Y-%m-%dT%H:%M:%SZ"
+            ).date()
 
             # Check if the issue was created within the date range
             if start_date_obj <= created_at_date <= end_date_obj:
                 # Parse closed_at date if it exists
                 closed_at = None
-                if issue.get('closed_at'):
-                    closed_at = datetime.strptime(issue["closed_at"], "%Y-%m-%dT%H:%M:%SZ").date().strftime("%Y-%m-%d")
+                if issue.get("closed_at"):
+                    closed_at = (
+                        datetime.strptime(issue["closed_at"], "%Y-%m-%dT%H:%M:%SZ")
+                        .date()
+                        .strftime("%Y-%m-%d")
+                    )
 
                 # Parse merged_at date if it exists (for PRs)
                 merged_at = None
-                if issue.get('pull_request') and issue['pull_request'].get('merged_at'):
-                    merged_at = datetime.strptime(issue["pull_request"]["merged_at"], "%Y-%m-%dT%H:%M:%SZ").date().strftime("%Y-%m-%d")
+                if issue.get("pull_request") and issue["pull_request"].get("merged_at"):
+                    merged_at = (
+                        datetime.strptime(
+                            issue["pull_request"]["merged_at"], "%Y-%m-%dT%H:%M:%SZ"
+                        )
+                        .date()
+                        .strftime("%Y-%m-%d")
+                    )
 
-                matching_issues.append({
-                    'title': issue['title'],
-                    'created_at': created_at_date.strftime("%Y-%m-%d"),
-                    'closed_at': closed_at,
-                    'merged_at': merged_at,
-                    'url': issue['html_url'],
-                    'state': issue['state']
-                })
+                matching_issues.append(
+                    {
+                        "title": issue["title"],
+                        "created_at": created_at_date.strftime("%Y-%m-%d"),
+                        "closed_at": closed_at,
+                        "merged_at": merged_at,
+                        "url": issue["html_url"],
+                        "state": issue["state"],
+                    }
+                )
 
     return {
-        'count': len(matching_issues),
-        'issues': sorted(matching_issues, key=lambda x: x['created_at'])
+        "count": len(matching_issues),
+        "issues": sorted(matching_issues, key=lambda x: x["created_at"]),
     }
 
 
@@ -1763,18 +1889,18 @@ def check_required_labels(item: dict, required_labels: dict, item_type: str) -> 
         }
     """
     # Get the set of labels on the item
-    item_labels = {label['name'] for label in item.get('labels', [])}
+    item_labels = {label["name"] for label in item.get("labels", [])}
     results = {}
-    
+
     # Get the required categories for this item type
     type_requirements = required_labels.get(item_type, {})
-    
+
     # Check each required category
     for category, allowed_labels in type_requirements.items():
         # Check if any of the allowed labels for this category are present
         has_required_label = any(label in item_labels for label in allowed_labels)
         results[category] = has_required_label
-    
+
     return results
 
 
@@ -1821,52 +1947,58 @@ def get_label_analysis_data(
 
     # Initialize results dictionary
     results = {}
-    
+
     # Generate list of weeks between start_date and end_date
     current_date = start_date_obj
     while current_date <= end_date_obj:
         year, week, _ = current_date.isocalendar()
         week_start = get_week_start_date(year, week)
         week_end = get_week_end_date(year, week)
-        
+
         # Create week key in format 'YY-WW'
         week_key = f"{str(year)[-2:]}-{str(week).zfill(2)}"
         results[week_key] = {}
 
         # Get open issues up to this week's end
         open_issues = get_open_issues_up_to_date(issues_data, week_end)
-        closed_issues = get_issues_closed_between_dates(issues_data, week_start, week_end)
+        closed_issues = get_issues_closed_between_dates(
+            issues_data, week_start, week_end
+        )
 
         # Process each category defined in label_config['issues']
-        for category, labels in label_config.get('issues', {}).items():
+        for category, labels in label_config.get("issues", {}).items():
             results[week_key][category] = {}
-            
+
             # Initialize counters for each label in this category
             for label in labels:
-                results[week_key][category][label] = {'open': 0, 'closed': 0}
+                results[week_key][category][label] = {"open": 0, "closed": 0}
 
             # Count open issues for each label
             for issue in open_issues:
-                issue_labels = [label['name'] for label in issue.get('labels', [])]
+                issue_labels = [label["name"] for label in issue.get("labels", [])]
                 for label in labels:
                     if label in issue_labels:
-                        results[week_key][category][label]['open'] += 1
+                        results[week_key][category][label]["open"] += 1
 
             # Count closed issues for each label
             for issue in closed_issues:
-                issue_labels = [label['name'] for label in issue.get('labels', [])]
+                issue_labels = [label["name"] for label in issue.get("labels", [])]
                 for label in labels:
                     if label in issue_labels:
-                        results[week_key][category][label]['closed'] += 1
+                        results[week_key][category][label]["closed"] += 1
 
             # Add category totals for this week
-            total_open = sum(label_data['open'] 
-                           for label_data in results[week_key][category].values())
-            total_closed = sum(label_data['closed'] 
-                             for label_data in results[week_key][category].values())
-            results[week_key][category]['total'] = {
-                'open': total_open,
-                'closed': total_closed
+            total_open = sum(
+                label_data["open"]
+                for label_data in results[week_key][category].values()
+            )
+            total_closed = sum(
+                label_data["closed"]
+                for label_data in results[week_key][category].values()
+            )
+            results[week_key][category]["total"] = {
+                "open": total_open,
+                "closed": total_closed,
             }
 
         # Move to next week
@@ -1878,17 +2010,17 @@ def get_label_analysis_data(
 def print_rejection_history(rejected_prs: list) -> None:
     """
     Print a formatted report of PRs with their rejection label history.
-    
+
     Args:
         rejected_prs (list): List of PRs with rejection history
     """
     if not rejected_prs:
         print("No PRs with rejection labels found in the specified date range.")
         return
-        
+
     print("\nPRs with Rejection Label History:")
     print("=================================")
-    
+
     for pr in rejected_prs:
         print(f"\n[#{pr['number']}] {pr['title']}")
         print(f"URL: {pr['url']}")
@@ -1896,46 +2028,64 @@ def print_rejection_history(rejected_prs: list) -> None:
         print(f"Current State: {pr['state']}")
         print(f"Current Labels: {', '.join(pr['current_labels'])}")
         print("\nLabel History:")
-        
-        for event in pr['label_history']:
-            action = "Added" if event['action'] == 'labeled' else "Removed"
+
+        for event in pr["label_history"]:
+            action = "Added" if event["action"] == "labeled" else "Removed"
             print(f"  • {event['date']}: {action} '{event['label']}'")
-        
+
         print("-" * 80)
 
 
-def get_prs_with_rejections(prs_data: list, start_date: str, end_date: str, rejection_labels: list, url: str, accept: str, token: str, save: bool = False) -> list:
+def get_prs_with_rejections(
+    prs_data: list,
+    start_date: str,
+    end_date: str,
+    rejection_labels: list,
+    url: str,
+    accept: str,
+    token: str,
+    save: bool = False,
+) -> list:
     """
     Get PRs with rejection labels between two dates.
     """
-    
-    base_url = "https://api.github.com/repos/kiwicampus/Kronos-Project/issues/3760/timeline"
-    
+
+    base_url = (
+        "https://api.github.com/repos/kiwicampus/Kronos-Project/issues/3760/timeline"
+    )
+
     # Set up headers
     headers = {
         "Accept": accept,
         "Authorization": f"Bearer github_pat_{token}",
     }
-    
 
     try:
-        response = requests.get(
-            base_url,
-            headers=headers
-        )
-        response.raise_for_status()  
+        response = requests.get(base_url, headers=headers)
+        response.raise_for_status()
         events = response.json()
         for event in events:
             if event["event"] == "labeled":
-                print(f"Label '{event['label']['name']}' was added by {event['actor']['login']} at {event['created_at']}")
+                print(
+                    f"Label '{event['label']['name']}' was added by {event['actor']['login']} at {event['created_at']}"
+                )
             elif event["event"] == "unlabeled":
-                print(f"Label '{event['label']['name']}' was removed by {event['actor']['login']} at {event['created_at']}")# Raise an exception for bad status codes
-        
+                print(
+                    f"Label '{event['label']['name']}' was removed by {event['actor']['login']} at {event['created_at']}"
+                )  # Raise an exception for bad status codes
+
     except requests.exceptions.RequestException as e:
         print(f"Error getting data: {str(e)}")
         return None
 
     return []
+
+
+def create_label_analysis_category_graphs(
+    label_analysis_data: dict, save_path: str = "/workspace/tmp"
+) -> None:
+    return
+
 
 # ----------------------------------------------------------------
 if __name__ == "__main__":
@@ -1945,9 +2095,23 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Process GitHub issues based on week numbers"
     )
-    parser = argparse.ArgumentParser(description="Process GitHub issues and generate reports")
-    parser.add_argument("--report-type", choices=['report-issues', 'report-prs', 'list-pr-issues', 'label-search', 'label-check'], help="Type of report to generate")
-    parser.add_argument("--start-date", help="Start date for PR-Issues report (YYYY-MM-DD)")
+    parser = argparse.ArgumentParser(
+        description="Process GitHub issues and generate reports"
+    )
+    parser.add_argument(
+        "--report-type",
+        choices=[
+            "report-issues",
+            "report-prs",
+            "list-pr-issues",
+            "label-search",
+            "label-check",
+        ],
+        help="Type of report to generate",
+    )
+    parser.add_argument(
+        "--start-date", help="Start date for PR-Issues report (YYYY-MM-DD)"
+    )
     parser.add_argument("--end-date", help="End date for PR-Issues report (YYYY-MM-DD)")
     parser.add_argument("--label", help="Label to search for")
     args = parser.parse_args()
@@ -1957,22 +2121,26 @@ if __name__ == "__main__":
     GITHUB_API_URL_ISSUES = str(
         os.getenv("GITHUB_API_URL_ISSUES")
     )  # Set this as your desired GitHub API endpoint
-    GITHUB_ACCEPT = str(os.getenv("GITHUB_ACCEPT"))     # Default to GitHub v3 if not set
-    GITHUB_TOKEN = str(os.getenv("GITHUB_TOKEN"))       # Bearer token without the prefix
+    GITHUB_ACCEPT = str(os.getenv("GITHUB_ACCEPT"))  # Default to GitHub v3 if not set
+    GITHUB_TOKEN = str(os.getenv("GITHUB_TOKEN"))  # Bearer token without the prefix
 
     # --------------------------------------------------------------
     # Check if the file exist, otherwise load it
-    data = load_issues_from_file(path="/workspace/tmp", filename="issues.json", max_age_days=5)
+    data = load_issues_from_file(
+        path="/workspace/tmp", filename="issues.json", max_age_days=5
+    )
     if not len(data):
         print("Downloading data from Github API ...")
         data = get_github_issues_and_prs_history(
             url=GITHUB_API_URL_ISSUES,
             accept=GITHUB_ACCEPT,
             token=GITHUB_TOKEN,
-            save=True
+            save=True,
         )
     if not len(data):
-        print("Warning: No data available. Please ensure the data file exists or the API is accessible.")
+        print(
+            "Warning: No data available. Please ensure the data file exists or the API is accessible."
+        )
         exit(1)
 
     # --------------------------------------------------------------
@@ -1988,16 +2156,14 @@ if __name__ == "__main__":
     priority_scores = scores_config["priority_scores"]
 
     # --------------------------------------------------------------
-    if args.report_type == 'report-issues':
+    if args.report_type == "report-issues":
 
         # --------------------------------------------------------------
         if not args.start_date or not args.end_date:
             print("Error: start-date and end-date are required for pr-issues report")
             exit(1)
 
-        print(
-            f"Analyzing issues from {args.start_date} to {args.end_date}"
-        )
+        print(f"Analyzing issues from {args.start_date} to {args.end_date}")
 
         # --------------------------------------------------------------
         # Check if the file exists and is not empty
@@ -2014,7 +2180,7 @@ if __name__ == "__main__":
         # Initialize table data
         table_data = []
         headers = ["Week", "Open Issues", "Created Issues", "Closed Issues", "Score"]
-        
+
         # Get list of years between start and end date
         start_date = datetime.strptime(args.start_date, "%Y-%m-%d").date()
         end_date = datetime.strptime(args.end_date, "%Y-%m-%d").date()
@@ -2052,7 +2218,7 @@ if __name__ == "__main__":
             print(f"Processing year {year} from week {start_week} to {end_week}")
 
             for week in range(start_week, end_week + 1):
-                
+
                 # ----------------------------------------------------------
                 # Get issues opened up to date
                 open_issues_up_to_date = get_open_issues_up_to_date(
@@ -2070,19 +2236,22 @@ if __name__ == "__main__":
                 )
 
                 categories = categorize_issues_by_priority(
-                    issues=issues_closed_this_week, priority_scores=priority_scores)
-                            
+                    issues=issues_closed_this_week, priority_scores=priority_scores
+                )
+
                 total_score = sum(cat["total_score"] for cat in categories.values())
-                
+
                 # Add row to table data
-                table_data.append([
-                    f"{str(year)[-2:]}-{str(week).zfill(2)}",
-                    len(open_issues_up_to_date),
-                    len(issues_created_this_week),
-                    len(issues_closed_this_week),
-                    total_score
-                ])
-                
+                table_data.append(
+                    [
+                        f"{str(year)[-2:]}-{str(week).zfill(2)}",
+                        len(open_issues_up_to_date),
+                        len(issues_created_this_week),
+                        len(issues_closed_this_week),
+                        total_score,
+                    ]
+                )
+
         # Print table only if PRINT_LOGS_ANALYSIS_RESULTS is true
         if os.getenv("PRINT_LOGS_ANALYSIS_RESULTS", "false").lower() == "true":
             print("\nWeekly Issues Summary:")
@@ -2091,10 +2260,7 @@ if __name__ == "__main__":
         # --------------------------------------------------------------
         # Create activity graph only if PERFORM_SCORE_ANALYSIS is true
         if os.getenv("PERFORM_QUANTITATIVE_ANALYSIS", "false").lower() == "true":
-            create_issues_activity_graph(
-                data=table_data,
-                headers=headers
-            )
+            create_issues_activity_graph(data=table_data, headers=headers)
 
         # --------------------------------------------------------------
         # Create score graph only if PERFORM_SCORE_ANALYSIS is true
@@ -2103,7 +2269,7 @@ if __name__ == "__main__":
                 issues_data=issues_data,
                 start_date=args.start_date,
                 end_date=args.end_date,
-                priority_scores=priority_scores
+                priority_scores=priority_scores,
             )
 
         # --------------------------------------------------------------
@@ -2113,7 +2279,7 @@ if __name__ == "__main__":
                 issues_data=issues_data,
                 start_date=args.start_date,
                 end_date=args.end_date,
-                priority_scores=priority_scores
+                priority_scores=priority_scores,
             )
 
         # --------------------------------------------------------------
@@ -2123,9 +2289,10 @@ if __name__ == "__main__":
             excluded_users = []
             try:
                 import yaml
-                with open('configs/exclude_users.yaml', 'r') as file:
+
+                with open("configs/exclude_users.yaml", "r") as file:
                     config = yaml.safe_load(file)
-                    excluded_users = config.get('excluded_users', [])
+                    excluded_users = config.get("excluded_users", [])
             except Exception as e:
                 print(f"Warning: Could not load excluded users: {str(e)}")
 
@@ -2134,9 +2301,12 @@ if __name__ == "__main__":
             os.makedirs(users_base_path, exist_ok=True)
 
             # Iterate over the weeks for user analysis
-            unique_users = [user for user in get_unique_users_from_issues(issues_data) 
-                        if user not in excluded_users]
-            
+            unique_users = [
+                user
+                for user in get_unique_users_from_issues(issues_data)
+                if user not in excluded_users
+            ]
+
             print("\nUnique active users involved in issues:")
             for user in unique_users:
                 print(f"- {user}")
@@ -2146,19 +2316,18 @@ if __name__ == "__main__":
 
             # Collect statistics for all users
             users_statistics = []
-            
+
             print("\nCreating graphs for each user:")
             for user in unique_users:
                 user_path = os.path.join(users_base_path, user)
-                
+
                 # Get weekly issues data for the user
                 user_weekly_data = get_user_weekly_issues(
                     issues_data=issues_data,
                     username=user,
                     start_date=args.start_date,
-                    end_date=args.end_date
+                    end_date=args.end_date,
                 )
-                
 
                 # Get weekly scores data for the user
                 user_weekly_scores = get_user_weekly_scores(
@@ -2166,36 +2335,39 @@ if __name__ == "__main__":
                     username=user,
                     start_date=args.start_date,
                     end_date=args.end_date,
-                    priority_scores=priority_scores
+                    priority_scores=priority_scores,
                 )
-                
 
                 # Collect total statistics for this user
-                total_created = sum(week['created_issues'] for week in user_weekly_data)
-                total_closed = sum(week['closed_issues'] for week in user_weekly_data)
-                total_score = sum(week['open_score'] for week in user_weekly_scores)
-                
-                users_statistics.append({
-                    'username': user,
-                    'open_issues': user_weekly_data[-1]['open_issues'],  # Get only last week's open issues
-                    'total_score': user_weekly_scores[-1]['open_score']  # Get only last week's score
-                })
-                
+                total_created = sum(week["created_issues"] for week in user_weekly_data)
+                total_closed = sum(week["closed_issues"] for week in user_weekly_data)
+                total_score = sum(week["open_score"] for week in user_weekly_scores)
+
+                users_statistics.append(
+                    {
+                        "username": user,
+                        "open_issues": user_weekly_data[-1][
+                            "open_issues"
+                        ],  # Get only last week's open issues
+                        "total_score": user_weekly_scores[-1][
+                            "open_score"
+                        ],  # Get only last week's score
+                    }
+                )
+
                 # Create graph for the user
                 create_user_issues_graph(
                     user_weekly_data=user_weekly_data,
                     username=user,
-                    save_path=user_path
+                    save_path=user_path,
                 )
-                
 
                 # Create score graph for the user
                 create_user_scores_graph(
                     user_weekly_data=user_weekly_scores,
                     username=user,
-                    save_path=user_path
+                    save_path=user_path,
                 )
-
 
                 # Create the new priority levels graph
                 create_user_priority_levels_graph(
@@ -2204,9 +2376,8 @@ if __name__ == "__main__":
                     start_date=args.start_date,
                     end_date=args.end_date,
                     save_path=user_path,
-                    priority_scores=priority_scores
+                    priority_scores=priority_scores,
                 )
-                
 
                 # Print user statistics if logging is enabled
                 if os.getenv("PRINT_LOGS_ANALYSIS_RESULTS", "false").lower() == "true":
@@ -2214,10 +2385,10 @@ if __name__ == "__main__":
                     headers = ["Week", "Open Issues", "Created", "Closed"]
                     table_data = [
                         [
-                            week_data['week'],
-                            week_data['open_issues'],
-                            week_data['created_issues'],
-                            week_data['closed_issues']
+                            week_data["week"],
+                            week_data["open_issues"],
+                            week_data["created_issues"],
+                            week_data["closed_issues"],
                         ]
                         for week_data in user_weekly_data
                     ]
@@ -2229,23 +2400,22 @@ if __name__ == "__main__":
             create_user_distribution_charts(
                 users_statistics=users_statistics,
                 end_date=args.end_date,  # Changed from end_week
-                save_path="/workspace/tmp"
+                save_path="/workspace/tmp",
             )
-            
+
             # Create users PDF report
             create_users_pdf_report(
                 start_date=args.start_date,  # Changed from start_week
-                end_date=args.end_date,      # Changed from end_week
-                save_path="/workspace/tmp"
-            )            
+                end_date=args.end_date,  # Changed from end_week
+                save_path="/workspace/tmp",
+            )
 
         # --------------------------------------------------------------
         # TODO - TODO - TODO - TODO - TODO - TODO - TODO - TODO - TODO - Remove this
         # Create analysis by label charts
         if os.getenv("PERFORM_LABEL_ANALYSIS", "false").lower() == "true":
-            
             try:
-                with open('configs/label_check.yaml', 'r') as file:
+                with open("configs/label_check.yaml", "r") as file:
                     label_config = yaml.safe_load(file)
                     if not isinstance(label_config, dict):
                         raise ValueError("Invalid label_check.yaml format")
@@ -2259,110 +2429,143 @@ if __name__ == "__main__":
                 end_date=args.end_date,
                 label_config=label_config,
             )
-        
+
+            # Create weekly category graphs
+            create_label_analysis_category_graphs(label_analysis_data)
+
             # Print the results
-            print(print_dict(label_analysis_data))
-        
+            print_dict(label_analysis_data)
+
         # --------------------------------------------------------------
         # After creating all graphs, merge them into PDF
         create_pdf_report(
             start_date=args.start_date,  # Changed from start_week
-            end_date=args.end_date,      # Changed from end_week
-            save_path="/workspace/tmp"
+            end_date=args.end_date,  # Changed from end_week
+            save_path="/workspace/tmp",
         )
 
-    elif args.report_type == 'list-pr-issues':
+    elif args.report_type == "list-pr-issues":
         if not args.start_date or not args.end_date:
             print("Error: start-date and end-date are required for pr-issues report")
             exit(1)
 
         # Get closed issues
-        closed_issues = get_closed_issues_details(issues_data, args.start_date, args.end_date)
+        closed_issues = get_closed_issues_details(
+            issues_data, args.start_date, args.end_date
+        )
         print(f"\nClosed Issues between {args.start_date} and {args.end_date}:")
         print(f"Total count: {closed_issues['count']}")
-        
-        if closed_issues['issues']:
-            print("\n\033[95mClosed Issues list:\033[0m")  # Purple text using ANSI escape code
-            for issue in closed_issues['issues']:
-                issue_number = issue['url'].split('/')[-1]
-                print(f"* [{issue['closed_at']}] [#{issue_number}]{issue['title']}: {issue['url']}")
+
+        if closed_issues["issues"]:
+            print(
+                "\n\033[95mClosed Issues list:\033[0m"
+            )  # Purple text using ANSI escape code
+            for issue in closed_issues["issues"]:
+                issue_number = issue["url"].split("/")[-1]
+                print(
+                    f"* [{issue['closed_at']}] [#{issue_number}]{issue['title']}: {issue['url']}"
+                )
 
         # Get created issues
-        created_issues = get_created_issues_details(issues_data, args.start_date, args.end_date)
+        created_issues = get_created_issues_details(
+            issues_data, args.start_date, args.end_date
+        )
         print(f"\nCreated Issues between {args.start_date} and {args.end_date}:")
         print(f"Total count: {created_issues['count']}")
-        
-        if created_issues['issues']:
-            print("\n\033[95mCreated Issues list:\033[0m")  # Purple text using ANSI escape code
-            for issue in created_issues['issues']:
-                issue_number = issue['url'].split('/')[-1]
-                print(f"* [{issue['created_at']}] [#{issue_number}]{issue['title']}: {issue['url']}")
 
-    elif args.report_type == 'label-search':
-        
+        if created_issues["issues"]:
+            print(
+                "\n\033[95mCreated Issues list:\033[0m"
+            )  # Purple text using ANSI escape code
+            for issue in created_issues["issues"]:
+                issue_number = issue["url"].split("/")[-1]
+                print(
+                    f"* [{issue['created_at']}] [#{issue_number}]{issue['title']}: {issue['url']}"
+                )
+
+    elif args.report_type == "label-search":
+
         args = parser.parse_args()
 
         if not args.label or not args.start_date or not args.end_date:
-            print("Error: label, start-date, and end-date are required for label search")
+            print(
+                "Error: label, start-date, and end-date are required for label search"
+            )
             exit(1)
 
         # --------------------------------------------------------------
         # Get prs with specified label
-        labeled_prs = get_issues_by_label(prs_data, args.label, args.start_date, args.end_date)
-        print(f"\n\nPRs with label '{args.label}' between {args.start_date} and {args.end_date}:")
+        labeled_prs = get_issues_by_label(
+            prs_data, args.label, args.start_date, args.end_date
+        )
+        print(
+            f"\n\nPRs with label '{args.label}' between {args.start_date} and {args.end_date}:"
+        )
         print(f"Total count: {labeled_prs['count']}")
-        
-        if labeled_prs['issues']:
+
+        if labeled_prs["issues"]:
             print("\nMatching PRs list:")
-            for pr in labeled_prs['issues']:
-                pr_number = pr['url'].split('/')[-1]
-                print(f"* [created:{pr['created_at']}][merged_at:{pr['merged_at']}]  [#{pr_number}] ({pr['state']}) {pr['title']}: {pr['url']}")
+            for pr in labeled_prs["issues"]:
+                pr_number = pr["url"].split("/")[-1]
+                print(
+                    f"* [created:{pr['created_at']}][merged_at:{pr['merged_at']}]  [#{pr_number}] ({pr['state']}) {pr['title']}: {pr['url']}"
+                )
 
         # --------------------------------------------------------------
         # Get issues with specified label
-        labeled_issues = get_issues_by_label(issues_data, args.label, args.start_date, args.end_date)
-        print(f"\n\nIssues with label '{args.label}' between {args.start_date} and {args.end_date}:")
+        labeled_issues = get_issues_by_label(
+            issues_data, args.label, args.start_date, args.end_date
+        )
+        print(
+            f"\n\nIssues with label '{args.label}' between {args.start_date} and {args.end_date}:"
+        )
         print(f"Total count: {labeled_issues['count']}")
-        
-        if labeled_issues['issues']:
-            print("\nMatching Issues list:")
-            for issue in labeled_issues['issues']:
-                issue_number = issue['url'].split('/')[-1]
-                print(f"* [created:{issue['created_at']}][closed-at:{issue['closed_at']}] [#{issue_number}] ({issue['state']}) {issue['title']}: {issue['url']}")
 
-    elif args.report_type == 'report-prs':
+        if labeled_issues["issues"]:
+            print("\nMatching Issues list:")
+            for issue in labeled_issues["issues"]:
+                issue_number = issue["url"].split("/")[-1]
+                print(
+                    f"* [created:{issue['created_at']}][closed-at:{issue['closed_at']}] [#{issue_number}] ({issue['state']}) {issue['title']}: {issue['url']}"
+                )
+
+    elif args.report_type == "report-prs":
         if not args.start_date or not args.end_date:
             print("Error: start-date and end-date are required for report-prs")
             exit(1)
 
-                # Load rejection labels from config
+            # Load rejection labels from config
         try:
-            with open('configs/label_check.yaml', 'r') as file:
+            with open("configs/label_check.yaml", "r") as file:
                 label_config = yaml.safe_load(file)
-                rejection_labels = label_config.get('prs', {}).get('rejection', [])
+                rejection_labels = label_config.get("prs", {}).get("rejection", [])
                 if not rejection_labels:
                     print("Warning: No rejection labels found in label_check.yaml")
                     exit(1)
         except Exception as e:
             print(f"Error loading label_check.yaml: {str(e)}")
             exit(1)
-        
+
         # Get PRs with rejection labels
-        rejected_prs_data = get_prs_with_rejections(prs_data=prs_data, start_date=args.start_date, end_date=args.end_date, rejection_labels=rejection_labels,
+        rejected_prs_data = get_prs_with_rejections(
+            prs_data=prs_data,
+            start_date=args.start_date,
+            end_date=args.end_date,
+            rejection_labels=rejection_labels,
             url=GITHUB_API_URL_ISSUES,
             accept=GITHUB_ACCEPT,
             token=GITHUB_TOKEN,
         )
         print(rejected_prs_data)
 
-    elif args.report_type == 'label-check':
+    elif args.report_type == "label-check":
         if not args.start_date or not args.end_date:
             print("Error: start-date and end-date are required for label check")
             exit(1)
 
         # Load labels configuration
         try:
-            with open('configs/label_check.yaml', 'r') as file:
+            with open("configs/label_check.yaml", "r") as file:
                 label_config = yaml.safe_load(file)
                 if not isinstance(label_config, dict):
                     raise ValueError("Invalid label_check.yaml format")
@@ -2370,57 +2573,75 @@ if __name__ == "__main__":
             print(f"Error loading label_check.yaml: {str(e)}")
             exit(1)
 
-        if not label_config.get('issues') and not label_config.get('prs'):
+        if not label_config.get("issues") and not label_config.get("prs"):
             print("No label requirements defined in label_check.yaml")
             exit(1)
 
         # Remove rejection labels from PRs
-        label_config['prs'].pop('rejection', None)
+        label_config["prs"].pop("rejection", None)
 
         # Get issues and PRs within date range
-        issues_in_range = get_issues_created_between_dates(issues_data, args.start_date, args.end_date)
-        prs_in_range = get_issues_created_between_dates(prs_data, args.start_date, args.end_date)
+        issues_in_range = get_issues_created_between_dates(
+            issues_data, args.start_date, args.end_date
+        )
+        prs_in_range = get_issues_created_between_dates(
+            prs_data, args.start_date, args.end_date
+        )
 
         # Check issues
-        print(f"\nChecking issues created between {args.start_date} and {args.end_date}:")
+        print(
+            f"\nChecking issues created between {args.start_date} and {args.end_date}:"
+        )
         issues_with_missing_labels = []
         for issue in issues_in_range:
-            results = check_required_labels(issue, label_config, 'issues')
-            missing_categories = [cat for cat, has_label in results.items() if not has_label]
-            
+            results = check_required_labels(issue, label_config, "issues")
+            missing_categories = [
+                cat for cat, has_label in results.items() if not has_label
+            ]
+
             if missing_categories:
-                issue_number = issue['html_url'].split('/')[-1]
-                issues_with_missing_labels.append({
-                    'number': issue_number,
-                    'title': issue['title'],
-                    'url': issue['html_url'],
-                    'missing': missing_categories
-                })
+                issue_number = issue["html_url"].split("/")[-1]
+                issues_with_missing_labels.append(
+                    {
+                        "number": issue_number,
+                        "title": issue["title"],
+                        "url": issue["html_url"],
+                        "missing": missing_categories,
+                    }
+                )
 
         # Check PRs
         print(f"\nChecking PRs created between {args.start_date} and {args.end_date}:")
         prs_with_missing_labels = []
         for pr in prs_in_range:
-                
-            results = check_required_labels(pr, label_config, 'prs')
-            missing_categories = [cat for cat, has_label in results.items() if not has_label]
-            
+
+            results = check_required_labels(pr, label_config, "prs")
+            missing_categories = [
+                cat for cat, has_label in results.items() if not has_label
+            ]
+
             if missing_categories:
-                pr_number = pr['html_url'].split('/')[-1]
-                prs_with_missing_labels.append({
-                    'number': pr_number,
-                    'title': pr['title'],
-                    'url': pr['html_url'],
-                    'missing': missing_categories
-                })
+                pr_number = pr["html_url"].split("/")[-1]
+                prs_with_missing_labels.append(
+                    {
+                        "number": pr_number,
+                        "title": pr["title"],
+                        "url": pr["html_url"],
+                        "missing": missing_categories,
+                    }
+                )
 
         # Print results
         if issues_with_missing_labels:
             print("\n\033[95mIssues missing required labels:\033[0m")  # Purple text
             for issue in issues_with_missing_labels:
-                print(f"\n* [\033[1m#{issue['number']}] {issue['title']}\033[0m")  # Bold text
+                print(
+                    f"\n* [\033[1m#{issue['number']}] {issue['title']}\033[0m"
+                )  # Bold text
                 print(f"  URL: {issue['url']}")
-                print(f"  Missing label categories: \033[93m{', '.join(issue['missing'])}\033[0m")
+                print(
+                    f"  Missing label categories: \033[93m{', '.join(issue['missing'])}\033[0m"
+                )
         else:
             print("\nAll issues have required labels! 🎉")
 
@@ -2429,7 +2650,9 @@ if __name__ == "__main__":
             for pr in prs_with_missing_labels:
                 print(f"\n* [\033[1m#{pr['number']}\033[0m] {pr['title']}")  # Bold text
                 print(f"  URL: {pr['url']}")
-                print(f"  Missing label categories: \033[93m{', '.join(pr['missing'])}\033[0m")
+                print(
+                    f"  Missing label categories: \033[93m{', '.join(pr['missing'])}\033[0m"
+                )
         else:
             print("\nAll PRs have required labels! 🎉")
 
@@ -2441,12 +2664,18 @@ if __name__ == "__main__":
 
         print(f"\nSummary:")
         if issues_with_problems == 0 and prs_with_problems == 0:
-            print(f"\tAll {total_issues + total_prs} items are properly labeled! 🎉 🥳 ✨")
+            print(
+                f"\tAll {total_issues + total_prs} items are properly labeled! 🎉 🥳 ✨"
+            )
         else:
-            print(f"\tIssues: {issues_with_problems}/{total_issues} missing required labels")
+            print(
+                f"\tIssues: {issues_with_problems}/{total_issues} missing required labels"
+            )
             print(f"\tPRs: {prs_with_problems}/{total_prs} missing required labels")
 
     else:
-        print("Invalid report type. Please use 'list-pr-issues', 'report-issues', 'report-prs', 'label-search', or 'label-check'.")
+        print(
+            "Invalid report type. Please use 'list-pr-issues', 'report-issues', 'report-prs', 'label-search', or 'label-check'."
+        )
         exit(1)
     exit()
