@@ -1912,7 +1912,7 @@ def get_label_analysis_data(
 ) -> dict:
     """
     Analyzes issues based on label categories defined in label_check.yaml.
-    For each week between start_date and end_date, counts open and closed issues.
+    For each week between start_date and end_date, counts open and closed issues for each subcategory.
 
     Args:
         issues_data (list): List of GitHub issues
@@ -1921,32 +1921,17 @@ def get_label_analysis_data(
         label_config (dict): Configuration from label_check.yaml
 
     Returns:
-        dict: Dictionary containing analysis data for each week
-        Example:
-        {
-            '24-01': {  # year-week
-                'category': {
-                    'syst_nav2': {'open': 5, 'closed': 3},
-                    'syst_wireless_station': {'open': 2, 'closed': 1},
-                    ...
-                },
-                'type': {
-                    '#type_feature': {'open': 3, 'closed': 2},
-                    '#type_bug': {'open': 4, 'closed': 1},
-                    ...
-                }
-            },
-            '24-02': {
-                ...
-            }
-        }
+        dict: Dictionary containing analysis data for each category and subcategory
     """
     # Convert string dates to datetime objects
     start_date_obj = datetime.strptime(start_date, "%Y-%m-%d").date()
     end_date_obj = datetime.strptime(end_date, "%Y-%m-%d").date()
 
     # Initialize results dictionary
-    results = {}
+    results = {
+        category: {subcategory: [] for subcategory in subcategories}
+        for category, subcategories in label_config.get("issues", {}).items()
+    }
 
     # Generate list of weeks between start_date and end_date
     current_date = start_date_obj
@@ -1957,7 +1942,6 @@ def get_label_analysis_data(
 
         # Create week key in format 'YY-WW'
         week_key = f"{str(year)[-2:]}-{str(week).zfill(2)}"
-        results[week_key] = {}
 
         # Get open issues up to this week's end
         open_issues = get_open_issues_up_to_date(issues_data, week_end)
@@ -1965,41 +1949,32 @@ def get_label_analysis_data(
             issues_data, week_start, week_end
         )
 
-        # Process each category defined in label_config['issues']
-        for category, labels in label_config.get("issues", {}).items():
-            results[week_key][category] = {}
+        # Process each category and subcategory defined in label_config['issues']
+        for category, subcategories in label_config.get("issues", {}).items():
+            for subcategory in subcategories:
+                open_count = 0
+                closed_count = 0
 
-            # Initialize counters for each label in this category
-            for label in labels:
-                results[week_key][category][label] = {"open": 0, "closed": 0}
+                # Count open issues for each subcategory
+                for issue in open_issues:
+                    issue_labels = [label["name"] for label in issue.get("labels", [])]
+                    if subcategory in issue_labels:
+                        open_count += 1
 
-            # Count open issues for each label
-            for issue in open_issues:
-                issue_labels = [label["name"] for label in issue.get("labels", [])]
-                for label in labels:
-                    if label in issue_labels:
-                        results[week_key][category][label]["open"] += 1
+                # Count closed issues for each subcategory
+                for issue in closed_issues:
+                    issue_labels = [label["name"] for label in issue.get("labels", [])]
+                    if subcategory in issue_labels:
+                        closed_count += 1
 
-            # Count closed issues for each label
-            for issue in closed_issues:
-                issue_labels = [label["name"] for label in issue.get("labels", [])]
-                for label in labels:
-                    if label in issue_labels:
-                        results[week_key][category][label]["closed"] += 1
-
-            # Add category totals for this week
-            total_open = sum(
-                label_data["open"]
-                for label_data in results[week_key][category].values()
-            )
-            total_closed = sum(
-                label_data["closed"]
-                for label_data in results[week_key][category].values()
-            )
-            results[week_key][category]["total"] = {
-                "open": total_open,
-                "closed": total_closed,
-            }
+                # Append the data to the results for this subcategory
+                results[category][subcategory].append(
+                    {
+                        "week": week_key,
+                        "open": open_count,
+                        "closed": closed_count,
+                    }
+                )
 
         # Move to next week
         current_date += timedelta(days=7)
@@ -2084,7 +2059,41 @@ def get_prs_with_rejections(
 def create_label_analysis_category_graphs(
     label_analysis_data: dict, save_path: str = "/workspace/tmp"
 ) -> None:
-    return
+
+    # Iterate over each category in the label analysis data
+    for category, subcategories in label_analysis_data.items():
+        # Extract weeks for x-axis
+        weeks = [data["week"] for data in next(iter(subcategories.values()))]
+
+        # Initialize a dictionary to hold the stacked data
+        stacked_data = {
+            subcategory: [data["open"] + data["closed"] for data in weekly_data]
+            for subcategory, weekly_data in subcategories.items()
+        }
+
+        # Create a new figure for each category
+        plt.figure(figsize=(10, 6))
+
+        # Plot stacked bars
+        bottom = np.zeros(len(weeks))
+        for subcategory, counts in stacked_data.items():
+            plt.bar(weeks, counts, label=subcategory, bottom=bottom)
+            bottom += np.array(counts)
+
+        # Add title and labels
+        plt.title(f"Issues for {category} - Subcategories")
+        plt.xlabel("Week")
+        plt.ylabel("Number of Issues")
+        plt.xticks(rotation=45)
+        plt.grid(True, linestyle="--", alpha=0.7)
+        plt.legend()
+
+        # Save the plot
+        filename = f"{category}_issues.png"
+        plt.savefig(os.path.join(save_path, filename), bbox_inches="tight", dpi=300)
+        plt.close()
+
+        print(f"Graph saved for {category} as {filename}")
 
 
 # ----------------------------------------------------------------
@@ -2411,7 +2420,6 @@ if __name__ == "__main__":
             )
 
         # --------------------------------------------------------------
-        # TODO - TODO - TODO - TODO - TODO - TODO - TODO - TODO - TODO - Remove this
         # Create analysis by label charts
         if os.getenv("PERFORM_LABEL_ANALYSIS", "false").lower() == "true":
             try:
@@ -2427,14 +2435,12 @@ if __name__ == "__main__":
                 issues_data=issues_data,
                 start_date=args.start_date,
                 end_date=args.end_date,
-                label_config=label_config,
+                label_config=label_config["issues"],
             )
+            label_analysis_data.pop("priority", None)
 
             # Create weekly category graphs
             create_label_analysis_category_graphs(label_analysis_data)
-
-            # Print the results
-            print_dict(label_analysis_data)
 
         # --------------------------------------------------------------
         # After creating all graphs, merge them into PDF

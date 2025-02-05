@@ -5,10 +5,10 @@ issues:
     - sys_teleoperation
     - sys_other
   type:
-    - #type_feature
-    - #type_bug
-    - #type_enhancement
-    - #type_hotfix
+    - type_feature
+    - type_bug
+    - type_enhancement
+    - type_hotfix
   priority:
     - PRIORITY_LOW
     - PRIORITY_MEDIUM
