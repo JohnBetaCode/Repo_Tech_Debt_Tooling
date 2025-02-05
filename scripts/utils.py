@@ -2439,8 +2439,10 @@ if __name__ == "__main__":
             )
             label_analysis_data.pop("priority", None)
 
+            print(label_analysis_data)
+
             # Create weekly category graphs
-            create_label_analysis_category_graphs(label_analysis_data)
+            # create_label_analysis_category_graphs(label_analysis_data)
 
         # --------------------------------------------------------------
         # After creating all graphs, merge them into PDF
