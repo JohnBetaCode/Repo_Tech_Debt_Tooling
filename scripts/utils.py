@@ -2038,7 +2038,9 @@ def get_prs_with_rejections(
     return []
 
 
-def create_label_analysis_category_graphs(label_analysis_data: dict, save_path: str = "/workspace/tmp") -> None:
+def create_label_analysis_category_graphs(
+    label_analysis_data: dict, save_path: str = "/workspace/tmp"
+) -> None:
     """
     Creates and saves stacked bar charts for each category and subcategory in the label analysis data.
 
@@ -2050,20 +2052,26 @@ def create_label_analysis_category_graphs(label_analysis_data: dict, save_path: 
         # Prepare data for plotting
         weeks = list(next(iter(subcategories.values())).keys())
         subcategory_names = list(subcategories.keys())
-        data = np.array([list(subcategories[sub].values()) for sub in subcategory_names])
+        data = np.array(
+            [list(subcategories[sub].values()) for sub in subcategory_names]
+        )
 
         # Create the stacked bar chart
         fig, ax = plt.subplots(figsize=(12, 6))
         bottom = np.zeros(len(weeks))
 
         for i, subcategory in enumerate(subcategory_names):
-            ax.bar(
-                weeks,
-                data[i],
-                label=subcategory,
-                bottom=bottom,
-                alpha=0.7
-            )
+            bars = ax.bar(weeks, data[i], label=subcategory, bottom=bottom, alpha=0.7)
+            # Add value labels in the middle of each bar
+            for bar, value in zip(bars, data[i]):
+                if value > 0:  # Only label non-zero values
+                    ax.text(
+                        bar.get_x() + bar.get_width() / 2,
+                        bar.get_y() + bar.get_height() / 2,
+                        str(value),
+                        ha="center",
+                        va="center",
+                    )
             bottom += data[i]
 
         # Add labels and title
@@ -2074,11 +2082,16 @@ def create_label_analysis_category_graphs(label_analysis_data: dict, save_path: 
         ax.set_xticklabels(weeks, rotation=45)
         ax.legend()
 
+        # Add grid and set y-axis to integer
+        ax.yaxis.get_major_locator().set_params(integer=True)  # Ensure integer y-axis
+        ax.grid(True, linestyle="--", alpha=0.7)  # Add grid with dashed lines
+
         # Save the plot
         filename = f"{category}_label_analysis.png"
         plt.savefig(os.path.join(save_path, filename), bbox_inches="tight", dpi=300)
         print(f"Graph saved as '{filename}'")
         plt.close()
+
 
 def get_non_closed_issues_by_category(issues: list, label_config: dict) -> dict:
     """
@@ -2457,8 +2470,6 @@ if __name__ == "__main__":
                 label_config=label_config["issues"],
             )
             label_analysis_data.pop("priority", None)
-
-            print(label_analysis_data)
 
             # Create weekly category graphs
             create_label_analysis_category_graphs(label_analysis_data)
