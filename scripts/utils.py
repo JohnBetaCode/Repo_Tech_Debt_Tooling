@@ -1826,37 +1826,29 @@ def print_dict(dictionary: dict, indent: int = 0, indent_size: int = 2) -> None:
         ...     }
         ... }
         >>> print_dict(data)
-        {
           'name': 'John'
-          'details': {
+          'details':
             'age': 30
-            'hobbies': [
+            'hobbies':
               'reading'
               'gaming'
-            ]
-          }
-        }
     """
     if not isinstance(dictionary, (dict, list)):
         print(" " * indent + str(dictionary))
         return
 
     if isinstance(dictionary, list):
-        print(" " * indent + "[")
         for item in dictionary:
             print_dict(item, indent + indent_size)
-        print(" " * indent + "]")
         return
 
-    print(" " * indent + "{")
     for key, value in dictionary.items():
-        print(" " * (indent + indent_size) + f"'{key}':", end=" ")
+        print(" " * indent + f"{key}:", end=" ")
         if isinstance(value, (dict, list)):
             print()
             print_dict(value, indent + indent_size)
         else:
             print(repr(value))
-    print(" " * indent + "}")
 
 
 def check_required_labels(item: dict, required_labels: dict, item_type: str) -> dict:
@@ -1931,30 +1923,41 @@ def get_label_analysis_data(
 
     # Iterate over each issue
     for issue in issues_data:
-        # Parse the created_at date
+        # Parse the created_at and closed_at dates
         created_at_date = datetime.strptime(
             issue["created_at"], "%Y-%m-%dT%H:%M:%SZ"
         ).date()
+        closed_at_date = (
+            datetime.strptime(issue["closed_at"], "%Y-%m-%dT%H:%M:%SZ").date()
+            if issue.get("closed_at")
+            else None
+        )
 
         # Check if the issue was created within the date range
         if start_date_obj <= created_at_date <= end_date_obj:
-            # Get the week label
-            year, week, _ = created_at_date.isocalendar()
-            week_label = f"{str(year)[-2:]}-{str(week).zfill(2)}"
+            # Iterate over each week to determine if the issue was open at the end of the week
+            current_date = start_date_obj
+            while current_date <= end_date_obj:
+                year, week, _ = current_date.isocalendar()
+                week_label = f"{str(year)[-2:]}-{str(week).zfill(2)}"
+                week_end_date = current_date + timedelta(
+                    days=(6 - current_date.weekday())
+                )
 
-            # Ensure the week_label is initialized in the results dictionary
-            for category, subcategories in label_config.items():
-                for subcategory in subcategories:
-                    if week_label not in results[category][subcategory]:
-                        results[category][subcategory][week_label] = 0
+                # Check if the issue was open at the end of this week
+                if created_at_date <= week_end_date and (
+                    not closed_at_date or closed_at_date > week_end_date
+                ):
 
-                    # Check if the issue has the subcategory label
-                    if any(
-                        label["name"] == subcategory
-                        for label in issue.get("labels", [])
-                    ):
-                        # Increment the count for the week label
-                        results[category][subcategory][week_label] += 1
+                    for category, subcategories in label_config.items():
+                        for subcategory in subcategories:
+                            if any(
+                                label["name"] == subcategory
+                                for label in issue.get("labels", [])
+                            ):
+                                results[category][subcategory][week_label] += 1
+
+                current_date += timedelta(days=7)
 
     # Sort the results dictionary by category, subcategory, and week keys
     sorted_results = {
@@ -2080,6 +2083,41 @@ def create_label_analysis_category_graphs(
         plt.close()
 
         print(f"Graph saved for {category} as {filename}")
+
+
+def get_non_closed_issues_by_category(issues: list, label_config: dict) -> dict:
+    """
+    Gets the number of non-closed issues per category and subcategory as specified in the label_check.yaml file.
+
+    Args:
+        issues (list): List of GitHub issues
+        label_config (dict): Dictionary containing label configurations for issues
+
+    Returns:
+        dict: Dictionary containing counts of non-closed issues per category and subcategory
+    """
+    # Initialize the results dictionary
+    results = {
+        category: {subcategory: 0 for subcategory in subcategories}
+        for category, subcategories in label_config.items()
+    }
+
+    # Iterate over each issue
+    for issue in issues:
+        # Skip closed issues
+        if issue["state"] == "closed":
+            continue
+
+        # Check each category and subcategory
+        for category, subcategories in label_config.items():
+            for subcategory in subcategories:
+                # Check if the issue has the subcategory label
+                if any(
+                    label["name"] == subcategory for label in issue.get("labels", [])
+                ):
+                    results[category][subcategory] += 1
+
+    return results
 
 
 # ----------------------------------------------------------------
@@ -2425,7 +2463,13 @@ if __name__ == "__main__":
             )
             label_analysis_data.pop("priority", None)
 
-            print_dict(label_analysis_data)
+            # print_dict(label_analysis_data)
+
+            today_issues = get_non_closed_issues_by_category(
+                issues=issues_data,
+                label_config=label_config["issues"],
+            )
+            print_dict(today_issues)
 
             # Create weekly category graphs
             # create_label_analysis_category_graphs(label_analysis_data)
