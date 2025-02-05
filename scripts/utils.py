@@ -1833,6 +1833,8 @@ def print_dict(dictionary: dict, indent: int = 0, indent_size: int = 2) -> None:
               'reading'
               'gaming'
     """
+
+    print()
     if not isinstance(dictionary, (dict, list)):
         print(" " * indent + str(dictionary))
         return
@@ -1849,6 +1851,7 @@ def print_dict(dictionary: dict, indent: int = 0, indent_size: int = 2) -> None:
             print_dict(value, indent + indent_size)
         else:
             print(repr(value))
+    print()
 
 
 def check_required_labels(item: dict, required_labels: dict, item_type: str) -> dict:
