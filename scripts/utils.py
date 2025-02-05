@@ -1910,76 +1910,62 @@ def get_label_analysis_data(
     end_date: str,
     label_config: dict,
 ) -> dict:
-    """
-    Analyzes issues based on label categories defined in label_check.yaml.
-    For each week between start_date and end_date, counts open and closed issues for each subcategory.
-
-    Args:
-        issues_data (list): List of GitHub issues
-        start_date (str): Start date in 'YYYY-MM-DD' format
-        end_date (str): End date in 'YYYY-MM-DD' format
-        label_config (dict): Configuration from label_check.yaml
-
-    Returns:
-        dict: Dictionary containing analysis data for each category and subcategory
-    """
     # Convert string dates to datetime objects
     start_date_obj = datetime.strptime(start_date, "%Y-%m-%d").date()
     end_date_obj = datetime.strptime(end_date, "%Y-%m-%d").date()
 
-    # Initialize results dictionary
-    results = {
-        category: {subcategory: [] for subcategory in subcategories}
-        for category, subcategories in label_config.get("issues", {}).items()
-    }
-
-    # Generate list of weeks between start_date and end_date
+    # Generate all week labels between start_date and end_date
     current_date = start_date_obj
+    all_weeks = set()
     while current_date <= end_date_obj:
         year, week, _ = current_date.isocalendar()
-        week_start = get_week_start_date(year, week)
-        week_end = get_week_end_date(year, week)
-
-        # Create week key in format 'YY-WW'
-        week_key = f"{str(year)[-2:]}-{str(week).zfill(2)}"
-
-        # Get open issues up to this week's end
-        open_issues = get_open_issues_up_to_date(issues_data, week_end)
-        closed_issues = get_issues_closed_between_dates(
-            issues_data, week_start, week_end
-        )
-
-        # Process each category and subcategory defined in label_config['issues']
-        for category, subcategories in label_config.get("issues", {}).items():
-            for subcategory in subcategories:
-                open_count = 0
-                closed_count = 0
-
-                # Count open issues for each subcategory
-                for issue in open_issues:
-                    issue_labels = [label["name"] for label in issue.get("labels", [])]
-                    if subcategory in issue_labels:
-                        open_count += 1
-
-                # Count closed issues for each subcategory
-                for issue in closed_issues:
-                    issue_labels = [label["name"] for label in issue.get("labels", [])]
-                    if subcategory in issue_labels:
-                        closed_count += 1
-
-                # Append the data to the results for this subcategory
-                results[category][subcategory].append(
-                    {
-                        "week": week_key,
-                        "open": open_count,
-                        "closed": closed_count,
-                    }
-                )
-
-        # Move to next week
+        week_label = f"{str(year)[-2:]}-{str(week).zfill(2)}"
+        all_weeks.add(week_label)
         current_date += timedelta(days=7)
 
-    return results
+    # Initialize the results dictionary with all weeks set to 0
+    results = {
+        category: {subcat: {week: 0 for week in all_weeks} for subcat in subcategories}
+        for category, subcategories in label_config.items()
+    }
+
+    # Iterate over each issue
+    for issue in issues_data:
+        # Parse the created_at date
+        created_at_date = datetime.strptime(
+            issue["created_at"], "%Y-%m-%dT%H:%M:%SZ"
+        ).date()
+
+        # Check if the issue was created within the date range
+        if start_date_obj <= created_at_date <= end_date_obj:
+            # Get the week label
+            year, week, _ = created_at_date.isocalendar()
+            week_label = f"{str(year)[-2:]}-{str(week).zfill(2)}"
+
+            # Ensure the week_label is initialized in the results dictionary
+            for category, subcategories in label_config.items():
+                for subcategory in subcategories:
+                    if week_label not in results[category][subcategory]:
+                        results[category][subcategory][week_label] = 0
+
+                    # Check if the issue has the subcategory label
+                    if any(
+                        label["name"] == subcategory
+                        for label in issue.get("labels", [])
+                    ):
+                        # Increment the count for the week label
+                        results[category][subcategory][week_label] += 1
+
+    # Sort the results dictionary by category, subcategory, and week keys
+    sorted_results = {
+        category: {
+            subcat: dict(sorted(results[category][subcat].items()))
+            for subcat in sorted(results[category])
+        }
+        for category in sorted(results)
+    }
+
+    return sorted_results
 
 
 def print_rejection_history(rejected_prs: list) -> None:
@@ -2439,7 +2425,7 @@ if __name__ == "__main__":
             )
             label_analysis_data.pop("priority", None)
 
-            print(label_analysis_data)
+            print_dict(label_analysis_data)
 
             # Create weekly category graphs
             # create_label_analysis_category_graphs(label_analysis_data)
