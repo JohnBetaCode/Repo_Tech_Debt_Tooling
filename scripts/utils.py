@@ -757,9 +757,7 @@ def create_pdf_report(
         end_date_obj = datetime.strptime(end_date, "%Y-%m-%d").date()
 
         # Get current time in configured timezone
-        tz = pytz.timezone(
-            os.getenv("REPORT_TIMEZONE", "America/New_York")
-        )  # Fallback to EST/EDT if not set
+        tz = pytz.timezone(os.getenv("REPORT_TIMEZONE", "America/New_York"))
         current_time = datetime.now(tz)
         header_text = f"Report generated on {current_time.strftime('%Y-%m-%d %H:%M:%S')} {tz.zone}"
 
@@ -773,14 +771,22 @@ def create_pdf_report(
             "issues_score.png",
             "issues_priority_levels.png",
             f"user_distribution_week_{end_date}.png",
+            "issues_priority_levels.png",
+            "category_label_analysis.png",
+            "type_label_analysis.png",
+            "departments_label_analysis.png"
         ]
 
         # Filter existing PNG files while maintaining order
-        png_files = [
-            f for f in ordered_png_files if os.path.exists(os.path.join(save_path, f))
-        ]
+        existing_png_files = []
+        for png_file in ordered_png_files:
+            file_path = os.path.join(save_path, png_file)
+            if os.path.exists(file_path):
+                existing_png_files.append(png_file)
+            else:
+                print(f"Warning: {png_file} not found, skipping...")
 
-        if not png_files:
+        if not existing_png_files:
             print("No PNG files found to merge")
             return
 
@@ -796,7 +802,7 @@ def create_pdf_report(
         processed_images = []
         total_height = MARGIN + HEADER_HEIGHT + SPACING  # Add header height to total
 
-        for png_file in png_files:
+        for png_file in existing_png_files:
             image_path = os.path.join(save_path, png_file)
             img = Image.open(image_path)
             if img.mode == "RGBA":
