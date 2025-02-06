@@ -1998,7 +1998,7 @@ def print_rejection_history(rejected_prs: list) -> None:
 
         print("-" * 80)
 
-
+# TODO - TODO - TODO
 def get_prs_with_rejections(
     prs_data: list,
     start_date: str,
@@ -2013,8 +2013,9 @@ def get_prs_with_rejections(
     Get PRs with rejection labels between two dates.
     """
 
+    # TODO:Pass and iterate with all urls instead of hardcoding one. 
     base_url = (
-        "https://api.github.com/repos/kiwicampus/Kronos-Project/issues/3760/timeline"
+        "https://api.github.com/repos/kiwicampus/Kronos-Project/issues/3835/timeline"
     )
 
     # Set up headers

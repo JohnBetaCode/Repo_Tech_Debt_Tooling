@@ -27,4 +27,4 @@ export PERFORM_LABEL_ANALYSIS=true
 # Date range for report generation (YYYY-MM-DD format)
 # This is development, save a lot of time, comment out when done
 export REPORT_START_DATE="2024-12-01"
-export REPORT_END_DATE="2025-02-28"
+export REPORT_END_DATE="2025-02-09"
