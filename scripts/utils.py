@@ -774,7 +774,8 @@ def create_pdf_report(
             "issues_priority_levels.png",
             "category_label_analysis.png",
             "type_label_analysis.png",
-            "departments_label_analysis.png"
+            "departments_label_analysis.png",
+            "priority_time_to_close_boxplot.png",
         ]
 
         # Filter existing PNG files while maintaining order
@@ -1998,6 +1999,7 @@ def print_rejection_history(rejected_prs: list) -> None:
 
         print("-" * 80)
 
+
 # TODO - TODO - TODO
 def get_prs_with_rejections(
     prs_data: list,
@@ -2013,7 +2015,7 @@ def get_prs_with_rejections(
     Get PRs with rejection labels between two dates.
     """
 
-    # TODO:Pass and iterate with all urls instead of hardcoding one. 
+    # TODO:Pass and iterate with all urls instead of hardcoding one.
     base_url = (
         "https://api.github.com/repos/kiwicampus/Kronos-Project/issues/3835/timeline"
     )
@@ -2133,6 +2135,132 @@ def get_non_closed_issues_by_category(issues: list, label_config: dict) -> dict:
                     results[category][subcategory] += 1
 
     return results
+
+
+def calculate_time_to_close_by_priority(
+    issues_data: list, scores_config_path: str, start_date: str, end_date: str
+) -> dict:
+    """
+    Calculates the time in days between the creation and closure of issues, categorized by priority labels,
+    within a specified date range.
+
+    Args:
+        issues_data (list): List of GitHub issues.
+        scores_config_path (str): Path to the scores configuration YAML file.
+        start_date (str): Start date in 'YYYY-MM-DD' format.
+        end_date (str): End date in 'YYYY-MM-DD' format.
+
+    Returns:
+        dict: Dictionary with priority labels as keys and lists of time differences in days as values.
+    """
+    # Load priority scores from the YAML configuration file
+    with open(scores_config_path, "r") as file:
+        scores_config = yaml.safe_load(file)
+        priority_scores = scores_config.get("priority_scores", {})
+
+    # Convert string dates to datetime objects
+    start_date_obj = datetime.strptime(start_date, "%Y-%m-%d").date()
+    end_date_obj = datetime.strptime(end_date, "%Y-%m-%d").date()
+
+    # Initialize a dictionary to store time differences by priority
+    time_to_close_by_priority = {priority: [] for priority in priority_scores.keys()}
+    time_to_close_by_priority["UNCATEGORIZED"] = []  # Add uncategorized category
+
+    # Iterate over each issue
+    for issue in issues_data:
+        # Parse the created_at and closed_at dates
+        created_at_date = datetime.strptime(
+            issue["created_at"], "%Y-%m-%dT%H:%M:%SZ"
+        ).date()
+        closed_at_date = None
+        if issue.get("closed_at"):
+            closed_at_date = datetime.strptime(
+                issue["closed_at"], "%Y-%m-%dT%H:%M:%SZ"
+            ).date()
+
+        # Check if the issue was closed within the specified date range
+        if closed_at_date and start_date_obj <= closed_at_date <= end_date_obj:
+            # Calculate the time difference in days
+            time_difference = (closed_at_date - created_at_date).days
+
+            # Determine the priority label of the issue
+            categorized = False
+            for label in issue.get("labels", []):
+                label_name = label["name"]
+                if label_name in time_to_close_by_priority:
+                    time_to_close_by_priority[label_name].append(time_difference)
+                    categorized = True
+                    break
+
+            # If no priority label was found, categorize as UNCATEGORIZED
+            if not categorized:
+                time_to_close_by_priority["UNCATEGORIZED"].append(time_difference)
+
+    return time_to_close_by_priority
+
+
+def create_priority_boxplot(
+    priority_data: dict, save_path: str = "/workspace/tmp"
+) -> None:
+    """
+    Creates and saves a box plot graph showing the time to close issues by priority level.
+
+    Args:
+        priority_data (dict): Dictionary containing priority labels as keys and lists of time differences in days as values.
+        save_path (str): Directory to save the graph.
+    """
+    # Extract categories and data from the priority_data dictionary
+    categories = list(priority_data.keys())
+    data = [priority_data[category] for category in categories]
+
+    # Create the box plot
+    plt.figure(figsize=(10, 6))
+    box = plt.boxplot(data, vert=False, patch_artist=True, labels=categories)
+
+    # Add sample circles on top
+    for i, category_data in enumerate(data):
+        y = [i + 1] * len(category_data)  # y positions for the samples
+        plt.scatter(category_data, y, alpha=0.6, edgecolors="w", zorder=3)
+
+    # Annotate the median values above the box plot with more offset
+    for i, category_data in enumerate(data):
+        if category_data:
+            median_value = np.median(category_data)
+            plt.annotate(
+                f"Median: {median_value}",
+                xy=(median_value, i + 1),
+                xytext=(0, 20),  # Increased offset to print further above
+                textcoords="offset points",
+                ha="center",
+                va="bottom",
+                fontsize=8,
+                color="blue",
+            )
+
+    # Add titles and labels
+    plt.title("Time to Close Issues by Priority Level")
+    plt.xlabel("Days to Close")
+    plt.ylabel("Priority Level (n = number of samples)")
+
+    # Annotate the number of samples for each category
+    for i, category in enumerate(categories):
+        plt.annotate(
+            f"n={len(data[i])}",
+            xy=(0.95, i + 1),
+            xycoords=("axes fraction", "data"),
+            ha="right",
+            va="center",
+            fontsize=8,
+            color="gray",
+        )
+
+    # Enable grid
+    plt.grid(True, linestyle="--", alpha=0.7)
+
+    # Save the plot
+    filename = "priority_time_to_close_boxplot.png"
+    plt.savefig(os.path.join(save_path, filename), bbox_inches="tight", dpi=300)
+    plt.close()
 
 
 # ----------------------------------------------------------------
@@ -2443,8 +2571,9 @@ if __name__ == "__main__":
                     print(tabulate(table_data, headers=headers, tablefmt="grid"))
 
         # --------------------------------------------------------------
-        # Create user distribution charts
+        # Create user distribution charts only if PERFORM_USER_ANALYSIS is true
         if os.getenv("PERFORM_USER_ANALYSIS", "false").lower() == "true":
+
             create_user_distribution_charts(
                 users_statistics=users_statistics,
                 end_date=args.end_date,  # Changed from end_week
@@ -2487,6 +2616,19 @@ if __name__ == "__main__":
             )
             print("Today's issues by category labels:")
             print_dict(today_issues)
+
+            # ------------------------------------------------------------
+            # From start date to end date, get the time in weeks by the category of PRIORITY label that takes to be closed, the data will be used to create a plotbox graph
+            priority_closed_time = calculate_time_to_close_by_priority(
+                issues_data=issues_data,
+                scores_config_path="configs/scores.yaml",
+                start_date=args.start_date,
+                end_date=args.end_date,
+            )
+
+            create_priority_boxplot(
+                priority_data=priority_closed_time, save_path="/workspace/tmp"
+            )
 
         # --------------------------------------------------------------
         # After creating all graphs, merge them into PDF

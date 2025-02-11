@@ -8,7 +8,7 @@ priority_scores:
   PRIORITY_HIGH: 
     weight: 3
     color: "#F35325"
-  SATANIC: 
+  PRIORITY_SATANIC: 
     weight: 5
     color: "#8B0000"
   UNCATEGORIZED: 
