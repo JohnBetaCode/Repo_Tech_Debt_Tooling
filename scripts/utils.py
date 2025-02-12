@@ -2053,7 +2053,6 @@ def get_prs_with_rejections(
 
             if start_date <= pr["created_at"] <= end_date:
                 pr_id = pr["url"].split("/")[-1]
-                pr_status = pr["state"]
                 pr_metadata = {}
 
                 # check if the file exists
@@ -2063,7 +2062,8 @@ def get_prs_with_rejections(
 
                     try:
                         response = requests.get(
-                            f"{pr['url']}/timeline", headers=headers
+                            f"{url}?{pr_id}/timeline",
+                            headers=headers,
                         )
                         response.raise_for_status()
                         pr_metadata = response.json()
@@ -2084,7 +2084,7 @@ def get_prs_with_rejections(
                 prs_metadata[pr_id] = pr_metadata
 
                 # Update the progress bar
-                pbar.update(1)
+            pbar.update(1)
 
     return prs_metadata
 
