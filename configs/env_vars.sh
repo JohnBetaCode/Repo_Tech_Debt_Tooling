@@ -25,7 +25,7 @@ export DELETE_PREVIOUS_REPORT=true
 export PERFORM_LABEL_ANALYSIS=true
 
 # Whether to flush PRs metadata
-export FLUSH_PRS_METADATA=true
+export FLUSH_PRS_METADATA=false
 
 # Verbose mode
 export VERBOSE=false

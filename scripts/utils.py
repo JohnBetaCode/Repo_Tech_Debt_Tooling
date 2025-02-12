@@ -2030,19 +2030,27 @@ def get_prs_with_rejections(
 
     save_path = "/workspace/tmp"
 
+    prs_data_filtered = get_prs_merged_between_dates(prs_data, start_date, end_date)[
+        "issues"
+    ]
+
     if os.getenv("FLUSH_PRS_METADATA", "false").lower() == "true":
-        for file in os.listdir(os.path.join(save_path, "prs_metadata")):
-            os.remove(os.path.join(save_path, "prs_metadata", file))
+        prs_metadata_path = os.path.join(save_path, "prs_metadata")
+        if not os.path.exists(prs_metadata_path):
+            os.makedirs(prs_metadata_path)  # Create the directory if it doesn't exist
+        for file in os.listdir(prs_metadata_path):
+            os.remove(os.path.join(prs_metadata_path, file))
 
     # create folder for prs metadata in tmp folder
     os.makedirs(os.path.join(save_path, "prs_metadata"), exist_ok=True)
 
     prs_metadata = {}
-    total_prs = len(prs_data)  # Total number of PRs to process
+    total_prs = len(prs_data_filtered)  # Total number of PRs to process
 
     # Initialize tqdm progress bar
     with tqdm(total=total_prs, desc="Fetching PR data", unit="PR") as pbar:
-        for pr in prs_data:
+        for pr in prs_data_filtered:
+
             if start_date <= pr["created_at"] <= end_date:
                 pr_id = pr["url"].split("/")[-1]
                 pr_status = pr["state"]
@@ -2060,9 +2068,7 @@ def get_prs_with_rejections(
                         response.raise_for_status()
                         pr_metadata = response.json()
                     except requests.exceptions.RequestException as e:
-                        print(
-                            f"\033[91mError getting data: {str(e)} for {pr['url']}\033[0m"
-                        )
+                        print(f"\033[91mError getting data: {str(e)}\033[0m")
                     try:
                         with open(file_path, "w") as f:
                             json.dump(pr_metadata, f)
