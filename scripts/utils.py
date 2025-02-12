@@ -12,6 +12,7 @@ import yaml
 from matplotlib.patches import Rectangle
 from PIL import Image, ImageDraw, ImageFont
 import pytz
+from tqdm import tqdm
 
 
 # ----------------------------------------------------------------
@@ -2016,16 +2017,10 @@ def get_prs_with_rejections(
     url: str,
     accept: str,
     token: str,
-    save: bool = False,
 ) -> list:
     """
     Get PRs with rejection labels between two dates.
     """
-
-    # TODO:Pass and iterate with all urls instead of hardcoding one.
-    base_url = (
-        "https://api.github.com/repos/kiwicampus/Kronos-Project/issues/3835/timeline"
-    )
 
     # Set up headers
     headers = {
@@ -2033,25 +2028,57 @@ def get_prs_with_rejections(
         "Authorization": f"Bearer github_pat_{token}",
     }
 
-    try:
-        response = requests.get(base_url, headers=headers)
-        response.raise_for_status()
-        events = response.json()
-        for event in events:
-            if event["event"] == "labeled":
-                print(
-                    f"Label '{event['label']['name']}' was added by {event['actor']['login']} at {event['created_at']}"
-                )
-            elif event["event"] == "unlabeled":
-                print(
-                    f"Label '{event['label']['name']}' was removed by {event['actor']['login']} at {event['created_at']}"
-                )  # Raise an exception for bad status codes
+    save_path = "/workspace/tmp"
 
-    except requests.exceptions.RequestException as e:
-        print(f"Error getting data: {str(e)}")
-        return None
+    if os.getenv("FLUSH_PRS_METADATA", "false").lower() == "true":
+        for file in os.listdir(os.path.join(save_path, "prs_metadata")):
+            os.remove(os.path.join(save_path, "prs_metadata", file))
 
-    return []
+    # create folder for prs metadata in tmp folder
+    os.makedirs(os.path.join(save_path, "prs_metadata"), exist_ok=True)
+
+    prs_metadata = {}
+    total_prs = len(prs_data)  # Total number of PRs to process
+
+    # Initialize tqdm progress bar
+    with tqdm(total=total_prs, desc="Fetching PR data", unit="PR") as pbar:
+        for pr in prs_data:
+            if start_date <= pr["created_at"] <= end_date:
+                pr_id = pr["url"].split("/")[-1]
+                pr_status = pr["state"]
+                pr_metadata = {}
+
+                # check if the file exists
+                file_path = os.path.join(save_path, "prs_metadata", f"{pr_id}.json")
+
+                if not os.path.exists(file_path):
+
+                    try:
+                        response = requests.get(
+                            f"{pr['url']}/timeline", headers=headers
+                        )
+                        response.raise_for_status()
+                        pr_metadata = response.json()
+                    except requests.exceptions.RequestException as e:
+                        print(
+                            f"\033[91mError getting data: {str(e)} for {pr['url']}\033[0m"
+                        )
+                    try:
+                        with open(file_path, "w") as f:
+                            json.dump(pr_metadata, f)
+                    except Exception as e:
+                        print(f"\033[91mError writing data to file: {str(e)}\033[0m")
+                else:
+                    # read the file if it exists
+                    with open(file_path, "r") as f:
+                        pr_metadata = json.load(f)
+
+                prs_metadata[pr_id] = pr_metadata
+
+                # Update the progress bar
+                pbar.update(1)
+
+    return prs_metadata
 
 
 def create_label_analysis_category_graphs(
@@ -2343,7 +2370,9 @@ def create_priority_boxplot_issues_opened(
 
     # Create the box plot
     plt.figure(figsize=(10, 6))
-    box = plt.boxplot(data, vert=False, patch_artist=True, tick_labels=categories)  # Updated parameter
+    box = plt.boxplot(
+        data, vert=False, patch_artist=True, tick_labels=categories
+    )  # Updated parameter
 
     # Add sample circles on top
     for i, category_data in enumerate(data):
@@ -2389,6 +2418,164 @@ def create_priority_boxplot_issues_opened(
     filename = "priority_time_to_open_boxplot.png"
     plt.savefig(os.path.join(save_path, filename), bbox_inches="tight", dpi=300)
     plt.close()
+
+
+def get_prs_created_between_dates(
+    prs_data: list, start_date: str, end_date: str
+) -> dict:
+    """
+    Gets the number and details of PRs created between two dates, including drafts.
+
+    Args:
+        prs_data (list): List of GitHub pull requests
+        start_date (str): Start date in 'YYYY-MM-DD' format
+        end_date (str): End date in 'YYYY-MM-DD' format
+
+    Returns:
+        dict: Dictionary containing count and list of created PRs
+        Example: {
+            'count': 5,
+            'issues': [
+                {'title': 'New feature PR', 'created_at': '2024-03-15', 'url': 'https://...'},
+                ...
+            ]
+        }
+    """
+    # Convert string dates to datetime objects
+    start_date_obj = datetime.strptime(start_date, "%Y-%m-%d").date()
+    end_date_obj = datetime.strptime(end_date, "%Y-%m-%d").date()
+
+    created_prs = []
+
+    for pr in prs_data:
+        # Parse the created_at date
+        created_at_date = datetime.strptime(
+            pr["created_at"], "%Y-%m-%dT%H:%M:%SZ"
+        ).date()
+
+        # Check if the PR was created within the date range
+        if start_date_obj <= created_at_date <= end_date_obj:
+            created_prs.append(
+                {
+                    "title": pr["title"],
+                    "created_at": created_at_date.strftime("%Y-%m-%d"),
+                    "url": pr["html_url"],
+                    "state": pr["state"],
+                    "draft": pr.get("draft", False),  # Include draft status
+                    "merged_at": pr.get("merged_at", None),
+                }
+            )
+
+    return {
+        "count": len(created_prs),
+        "issues": sorted(created_prs, key=lambda x: x["created_at"]),
+    }
+
+
+def get_prs_merged_between_dates(
+    prs_data: list, start_date: str, end_date: str
+) -> dict:
+    """
+    Gets the number and details of PRs merged between two dates.
+
+    Args:
+        prs_data (list): List of GitHub pull requests
+        start_date (str): Start date in 'YYYY-MM-DD' format
+        end_date (str): End date in 'YYYY-MM-DD' format
+
+    Returns:
+        dict: Dictionary containing count and list of merged PRs
+        Example: {
+            'count': 5,
+            'issues': [
+                {'title': 'Feature PR', 'merged_at': '2024-03-15', 'url': 'https://...'},
+                ...
+            ]
+        }
+    """
+    # Convert string dates to datetime objects
+    start_date_obj = datetime.strptime(start_date, "%Y-%m-%d").date()
+    end_date_obj = datetime.strptime(end_date, "%Y-%m-%d").date()
+
+    merged_prs = []
+
+    for pr in prs_data:
+
+        # Skip if PR is not merged, has no merged_at date, or is a draft
+        if (
+            "pull_request" not in pr
+            or not pr["pull_request"].get("merged_at")
+            or pr.get("draft", False)
+        ):
+            continue
+
+        # Parse the merged_at date
+        merged_at_date = datetime.strptime(
+            pr["pull_request"]["merged_at"], "%Y-%m-%dT%H:%M:%SZ"
+        ).date()
+
+        # Check if the PR was merged within the date range
+        if start_date_obj <= merged_at_date <= end_date_obj:
+            merged_prs.append(
+                {
+                    "title": pr["title"],
+                    "created_at": pr["created_at"],
+                    "merged_at": merged_at_date.strftime("%Y-%m-%d"),
+                    "url": pr["html_url"],
+                    "state": pr["state"],
+                }
+            )
+
+    return {
+        "count": len(merged_prs),
+        "issues": sorted(merged_prs, key=lambda x: x["merged_at"]),
+    }
+
+
+def get_open_prs_until_end_date(prs_data: list, end_date: str) -> dict:
+    """
+    Gets the number and details of PRs that are open until a specified end date.
+
+    Args:
+        prs_data (list): List of GitHub pull requests
+        end_date (str): End date in 'YYYY-MM-DD' format
+
+    Returns:
+        dict: Dictionary containing count and list of open PRs
+        Example: {
+            'count': 5,
+            'issues': [
+                {'title': 'Open PR', 'created_at': '2024-03-15', 'url': 'https://...', 'state': 'open'},
+                ...
+            ]
+        }
+    """
+    # Convert string end_date to a datetime object
+    end_date_obj = datetime.strptime(end_date, "%Y-%m-%d").date()
+
+    open_prs = []
+
+    for pr in prs_data:
+        # Parse the created_at date
+        created_at_date = datetime.strptime(
+            pr["created_at"], "%Y-%m-%dT%H:%M:%SZ"
+        ).date()
+
+        # Check if the PR is open and was created before or on the end date
+        if pr["state"] == "open" and created_at_date <= end_date_obj:
+            open_prs.append(
+                {
+                    "title": pr["title"],
+                    "created_at": created_at_date.strftime("%Y-%m-%d"),
+                    "url": pr["html_url"],
+                    "state": pr["state"],
+                }
+            )
+
+    return {
+        "count": len(open_prs),
+        "issues": sorted(open_prs, key=lambda x: x["created_at"]),
+    }
 
 
 # ----------------------------------------------------------------
@@ -2765,11 +2952,11 @@ if __name__ == "__main__":
                 start_date=args.start_date,
                 end_date=args.end_date,
             )
-            
+
             # Create priority boxplot for issues opened
             create_priority_boxplot_issues_opened(
                 priority_data=priority_opened_time, save_path="/workspace/tmp"
-            )   
+            )
 
         # --------------------------------------------------------------
         # After creating all graphs, merge them into PDF
@@ -2788,10 +2975,10 @@ if __name__ == "__main__":
         closed_issues = get_closed_issues_details(
             issues_data, args.start_date, args.end_date
         )
-        print(f"\nClosed Issues between {args.start_date} and {args.end_date}:")
+        print(f"\n🐞Closed Issues between {args.start_date} and {args.end_date}:")
         print(f"Total count: {closed_issues['count']}")
 
-        if closed_issues["issues"]:
+        if closed_issues["issues"] and os.getenv("VERBOSE", "false").lower() == "true":
             print(
                 "\n\033[95mClosed Issues list:\033[0m"
             )  # Purple text using ANSI escape code
@@ -2801,14 +2988,15 @@ if __name__ == "__main__":
                     f"* [{issue['closed_at']}] [#{issue_number}]{issue['title']}: {issue['url']}"
                 )
 
+        # --------------------------------------------------------------
         # Get created issues
         created_issues = get_created_issues_details(
             issues_data, args.start_date, args.end_date
         )
-        print(f"\nCreated Issues between {args.start_date} and {args.end_date}:")
+        print(f"\n🐞 Created Issues between {args.start_date} and {args.end_date}:")
         print(f"Total count: {created_issues['count']}")
 
-        if created_issues["issues"]:
+        if created_issues["issues"] and os.getenv("VERBOSE", "false").lower() == "true":
             print(
                 "\n\033[95mCreated Issues list:\033[0m"
             )  # Purple text using ANSI escape code
@@ -2817,6 +3005,62 @@ if __name__ == "__main__":
                 print(
                     f"* [{issue['created_at']}] [#{issue_number}]{issue['title']}: {issue['url']}"
                 )
+
+        # --------------------------------------------------------------
+        # Get PRs created between start and end date
+        prs_created = get_prs_created_between_dates(
+            prs_data, args.start_date, args.end_date
+        )
+        print(f"\n🎯 PRs created between {args.start_date} and {args.end_date}:")
+        print(f"Total count: {prs_created['count']}")
+
+        if prs_created["issues"] and os.getenv("VERBOSE", "false").lower() == "true":
+            print(
+                "\n\033[95mPRs created list:\033[0m"
+            )  # Purple text using ANSI escape code
+            for pr in prs_created["issues"]:
+                pr_number = pr["url"].split("/")[-1]
+                print(
+                    f"* [created:{pr['created_at']}][merged_at:{pr['merged_at']}]  [#{pr_number}] ({pr['state']}) {pr['title']}: {pr['url']}"
+                )
+
+        # --------------------------------------------------------------
+        # Get merged prs between start and end date
+        prs_merged = get_prs_merged_between_dates(
+            prs_data, args.start_date, args.end_date
+        )
+
+        print(f"\n🎯 PRs merged between {args.start_date} and {args.end_date}:")
+        print(f"Total count: {prs_merged['count']}")
+
+        if prs_merged["issues"] and os.getenv("VERBOSE", "false").lower() == "true":
+            print(
+                "\n\033[95mPRs merged list:\033[0m"
+            )  # Purple text using ANSI escape code
+            for pr in prs_merged["issues"]:
+                pr_number = pr["url"].split("/")[-1]
+                print(
+                    f"* [created:{pr['created_at']}][merged_at:{pr['merged_at']}]  [#{pr_number}] ({pr['state']}) {pr['title']}: {pr['url']}"
+                )
+
+        # --------------------------------------------------------------
+        # Get open prs until end date
+        open_prs = get_open_prs_until_end_date(prs_data, args.end_date)
+        print(f"\n🎯 PRs Open until {args.end_date}:")
+        print(f"Total count: {open_prs['count']}")
+
+        if open_prs["issues"] and os.getenv("VERBOSE", "false").lower() == "true":
+            print(
+                "\n\033[95mOpen PRs list:\033[0m"
+            )  # Purple text using ANSI escape code
+            for pr in open_prs["issues"]:
+                pr_number = pr["url"].split("/")[-1]
+                print(
+                    f"* [created:{pr['created_at']}] [#{pr_number}] ({pr['state']}) {pr['title']}: {pr['url']}"
+                )
+
+        # --------------------------------------------------------------
+        print("")
 
     elif args.report_type == "label-search":
 
@@ -2891,7 +3135,6 @@ if __name__ == "__main__":
             accept=GITHUB_ACCEPT,
             token=GITHUB_TOKEN,
         )
-        print(rejected_prs_data)
 
     elif args.report_type == "label-check":
         if not args.start_date or not args.end_date:

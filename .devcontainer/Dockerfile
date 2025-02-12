@@ -53,6 +53,7 @@ RUN python3 -m pip install --upgrade pip wheel \
     requests \
     PyYAML \
     tabulate \
+    tqdm \
     --ignore-installed \
     && rm -rf /home/ada/.cache/pip
 
