@@ -2069,11 +2069,13 @@ def get_prs_with_rejections(
                         pr_metadata = response.json()
                     except requests.exceptions.RequestException as e:
                         print(f"\033[91mError getting data: {str(e)}\033[0m")
+                        continue
                     try:
                         with open(file_path, "w") as f:
                             json.dump(pr_metadata, f)
                     except Exception as e:
                         print(f"\033[91mError writing data to file: {str(e)}\033[0m")
+                        continue
                 else:
                     # read the file if it exists
                     with open(file_path, "r") as f:
