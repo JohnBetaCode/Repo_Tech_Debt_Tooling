@@ -288,7 +288,13 @@ def get_issues_closed_between_dates(issues, start_date, end_date):
 
         # Check if the issue was closed within the date range
         if start_date_obj <= closed_at_date <= end_date_obj:
-            closed_issues.append(issue)
+            closed_issues.append(
+                {
+                    "title": issue["title"],
+                    "closed_at": closed_at_date.strftime("%Y-%m-%d"),
+                    "url": issue["html_url"],
+                }
+            )
 
     return closed_issues
 
@@ -776,6 +782,7 @@ def create_pdf_report(
             "type_label_analysis.png",
             "departments_label_analysis.png",
             "priority_time_to_close_boxplot.png",
+            "priority_time_to_open_boxplot.png",
         ]
 
         # Filter existing PNG files while maintaining order
@@ -2199,7 +2206,7 @@ def calculate_time_to_close_by_priority(
     return time_to_close_by_priority
 
 
-def create_priority_boxplot(
+def create_priority_boxplot_issues_closed(
     priority_data: dict, save_path: str = "/workspace/tmp"
 ) -> None:
     """
@@ -2215,7 +2222,7 @@ def create_priority_boxplot(
 
     # Create the box plot
     plt.figure(figsize=(10, 6))
-    box = plt.boxplot(data, vert=False, patch_artist=True, labels=categories)
+    box = plt.boxplot(data, vert=False, patch_artist=True, tick_labels=categories)
 
     # Add sample circles on top
     for i, category_data in enumerate(data):
@@ -2238,7 +2245,7 @@ def create_priority_boxplot(
             )
 
     # Add titles and labels
-    plt.title("Time to Close Issues by Priority Level")
+    plt.title("Distribution of Time that takes to Close Issues by Priority Level")
     plt.xlabel("Days to Close")
     plt.ylabel("Priority Level (n = number of samples)")
 
@@ -2259,6 +2266,127 @@ def create_priority_boxplot(
 
     # Save the plot
     filename = "priority_time_to_close_boxplot.png"
+    plt.savefig(os.path.join(save_path, filename), bbox_inches="tight", dpi=300)
+    plt.close()
+
+
+def calculate_open_time_by_priority(
+    issues_data: list, scores_config_path: str, start_date: str, end_date: str
+) -> dict:
+    """
+    Calculates the time in days that issues have been open, categorized by priority labels,
+    within a specified date range.
+
+    Args:
+        issues_data (list): List of GitHub issues.
+        scores_config_path (str): Path to the scores configuration YAML file.
+        start_date (str): Start date in 'YYYY-MM-DD' format.
+        end_date (str): End date in 'YYYY-MM-DD' format.
+
+    Returns:
+        dict: Dictionary with priority labels as keys and lists of time differences in days as values.
+    """
+    # Load priority scores from the YAML configuration file
+    with open(scores_config_path, "r") as file:
+        scores_config = yaml.safe_load(file)
+        priority_scores = scores_config.get("priority_scores", {})
+
+    # Convert string dates to datetime objects
+    start_date_obj = datetime.strptime(start_date, "%Y-%m-%d").date()
+    end_date_obj = datetime.strptime(end_date, "%Y-%m-%d").date()
+
+    # Initialize a dictionary to store time differences by priority
+    open_time_by_priority = {priority: [] for priority in priority_scores.keys()}
+    open_time_by_priority["UNCATEGORIZED"] = []  # Add uncategorized category
+
+    # Iterate over each issue
+    for issue in issues_data:
+        # Parse the created_at date
+        created_at_date = datetime.strptime(
+            issue["created_at"], "%Y-%m-%dT%H:%M:%SZ"
+        ).date()
+
+        # Check if the issue was created within the specified date range
+        if start_date_obj <= created_at_date <= end_date_obj:
+            # Calculate the time difference in days from creation to the end date
+            time_difference = (end_date_obj - created_at_date).days
+
+            # Determine the priority label of the issue
+            categorized = False
+            for label in issue.get("labels", []):
+                label_name = label["name"]
+                if label_name in open_time_by_priority:
+                    open_time_by_priority[label_name].append(time_difference)
+                    categorized = True
+                    break
+
+            # If no priority label was found, categorize as UNCATEGORIZED
+            if not categorized:
+                open_time_by_priority["UNCATEGORIZED"].append(time_difference)
+
+    return open_time_by_priority
+
+
+def create_priority_boxplot_issues_opened(
+    priority_data: dict, save_path: str = "/workspace/tmp"
+) -> None:
+    """
+    Creates and saves a box plot graph showing the time issues have been open by priority level.
+
+    Args:
+        priority_data (dict): Dictionary containing priority labels as keys and lists of time differences in days as values.
+        save_path (str): Directory to save the graph.
+    """
+    # Extract categories and data from the priority_data dictionary
+    categories = list(priority_data.keys())
+    data = [priority_data[category] for category in categories]
+
+    # Create the box plot
+    plt.figure(figsize=(10, 6))
+    box = plt.boxplot(data, vert=False, patch_artist=True, tick_labels=categories)  # Updated parameter
+
+    # Add sample circles on top
+    for i, category_data in enumerate(data):
+        y = [i + 1] * len(category_data)  # y positions for the samples
+        plt.scatter(category_data, y, alpha=0.6, edgecolors="w", zorder=3)
+
+    # Annotate the median values above the box plot with more offset
+    for i, category_data in enumerate(data):
+        if category_data:
+            median_value = np.median(category_data)
+            plt.annotate(
+                f"Median: {median_value}",
+                xy=(median_value, i + 1),
+                xytext=(0, 20),  # Increased offset to print further above
+                textcoords="offset points",
+                ha="center",
+                va="bottom",
+                fontsize=8,
+                color="blue",
+            )
+
+    # Add titles and labels
+    plt.title("Distribution of Time of Issues since they were opened by Priority Level")
+    plt.xlabel("Days Open")
+    plt.ylabel("Priority Level (n = number of samples)")
+
+    # Annotate the number of samples for each category
+    for i, category in enumerate(categories):
+        plt.annotate(
+            f"n={len(data[i])}",
+            xy=(0.95, i + 1),
+            xycoords=("axes fraction", "data"),
+            ha="right",
+            va="center",
+            fontsize=8,
+            color="gray",
+        )
+
+    # Enable grid
+    plt.grid(True, linestyle="--", alpha=0.7)
+
+    # Save the plot
+    filename = "priority_time_to_open_boxplot.png"
     plt.savefig(os.path.join(save_path, filename), bbox_inches="tight", dpi=300)
     plt.close()
 
@@ -2614,8 +2742,8 @@ if __name__ == "__main__":
                 issues=issues_data,
                 label_config=label_config["issues"],
             )
-            print("Today's issues by category labels:")
-            print_dict(today_issues)
+            # print("Today's issues by category labels:")
+            # print_dict(today_issues)
 
             # ------------------------------------------------------------
             # From start date to end date, get the time in weeks by the category of PRIORITY label that takes to be closed, the data will be used to create a plotbox graph
@@ -2626,9 +2754,22 @@ if __name__ == "__main__":
                 end_date=args.end_date,
             )
 
-            create_priority_boxplot(
+            create_priority_boxplot_issues_closed(
                 priority_data=priority_closed_time, save_path="/workspace/tmp"
             )
+
+            # ------------------------------------------------------------
+            priority_opened_time = calculate_open_time_by_priority(
+                issues_data=issues_data,
+                scores_config_path="configs/scores.yaml",
+                start_date=args.start_date,
+                end_date=args.end_date,
+            )
+            
+            # Create priority boxplot for issues opened
+            create_priority_boxplot_issues_opened(
+                priority_data=priority_opened_time, save_path="/workspace/tmp"
+            )   
 
         # --------------------------------------------------------------
         # After creating all graphs, merge them into PDF
