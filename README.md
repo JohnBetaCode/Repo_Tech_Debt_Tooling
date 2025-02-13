@@ -70,6 +70,7 @@ Key use cases:
   - Custom label tracking
   - Label correlation insights
   - Category-based grouping
+  - Rejection label analysis for PRs
 
 ## Configuration
 
@@ -81,11 +82,19 @@ export PERFORM_USER_ANALYSIS=true
 export PERFORM_SCORE_ANALYSIS=true
 export PERFORM_QUANTITATIVE_ANALYSIS=true
 export PERFORM_PRIORITY_ANALYSIS=true
+export PERFORM_LABEL_ANALYSIS=true
 
 # Report generation settings
 export GENERATE_REPORT_CLEANUP=true
-export DELETE_PREVIOUS_REPORT=false
+export DELETE_PREVIOUS_REPORT=true
 export PRINT_LOGS_ANALYSIS_RESULTS=false
+export FLUSH_PRS_METADATA=false
+export VERBOSE=true
+
+# Date range for report generation (YYYY-MM-DD format)
+# This is development, save a lot of time, comment out when done
+export REPORT_START_DATE="2024-12-01"
+export REPORT_END_DATE="2025-02-14"
 ```
 
 ### User Exclusions
@@ -102,8 +111,6 @@ included_users:
   - user1
   - user2
 ```
-
-
 
 ### Authentication
 Create `configs/secrets.sh` with your GitHub credentials or ask to your manager for it:
@@ -130,36 +137,74 @@ metrics:
   resolution_time_target: 168  # hours
 ```
 
+## Configuration and Script Files
+
+This project relies on several configuration files and scripts to customize the analysis and report generation. Below is a brief overview of each:
+
+### Configuration Files
+
+- **`configs/env_vars.sh`**: Contains environment variables that control various aspects of the analysis and report generation, such as toggles for different types of analysis and cleanup operations.
+
+- **`configs/color_scale_config.yaml`**: Defines the color scales used in visualizations to represent different ranges of priority scores, helping to quickly identify areas of concern.
+
+- **`configs/scores.yaml`**: Specifies the scoring system for issue priorities, including weights and colors for each priority level.
+
+- **`configs/label_check.yaml`**: Lists the required labels for issues and pull requests, categorized by type, priority, and other attributes. This file is used to ensure that all items are properly labeled.
+
+### Script Files
+
+- **`scripts/utils.py`**: Contains utility functions for data analysis and visualization. Key functions include creating graphs for issue scores, user distribution, and label analysis. It also handles data loading and filtering based on the provided configurations.
+
+- **`scripts/generate_report.sh`**: A shell script that orchestrates the report generation process. It provides a menu-driven interface to select different types of reports and handles the setup of necessary directories and environment variables.
+
+### Usage
+
+To customize the analysis, modify the configuration files as needed. For example, adjust the `env_vars.sh` to enable or disable specific analyses, or update `scores.yaml` to change the priority scoring system.
+
+Run the `generate_report.sh` script to generate reports based on the selected options. The script will use the configurations to determine the scope and details of the analysis.
+
+```shell
+./scripts/generate_report.sh
+```
+
+This command will prompt you to select the type of report you wish to generate and guide you through the process.
+
 ## Installation
 
 ### Using Dev Container (recommended)
+
 1. Open the project in VS Code
 2. Press `Ctrl+Shift+P` (Windows/Linux) or `Cmd+Shift+P` (macOS)
 3. Type "Dev Containers: Reopen in Container" and select it
 4. Wait for the container to build and start
 5. Run the analysis:
+
 ```bash
 ./scripts/generate_report.sh
 ```
 
 ### Using Docker
 1. Build the container:
+
 ```bash
 docker build -f .devcontainer/Dockerfile -t github-issues-analysis .
 ```
 
 2. Run the analysis:
+
 ```bash
 docker run -v $(pwd):/workspace github-issues-analysis ./scripts/generate_report.sh
 ```
 
 ### Manual Installation
+
 1. Install Python dependencies:
 ```bash
 pip install matplotlib pandas numpy fpdf requests PyYAML tabulate
 ```
 
 2. Run the analysis script:
+
 ```bash
 ./scripts/generate_report.sh [start_week] [end_week]
 ```
@@ -167,11 +212,13 @@ pip install matplotlib pandas numpy fpdf requests PyYAML tabulate
 ## Usage
 
 ### Basic Usage
+
 ```bash
 ./scripts/generate_report.sh 1 52  # Analyze entire year
 ```
 
 ### Script Options
+
 ```bash
 Usage: generate_report.sh [options] [start_week] [end_week]
 
@@ -206,15 +253,21 @@ Arguments:
 ```
 .
 ├── configs/
-│   ├── env_vars.sh    # Configuration flags
-│   ├── secrets.sh     # GitHub credentials
-│   └── scores.yaml    # Priority scoring configuration
+│   ├── env_vars.sh          # Configuration flags
+│   ├── secrets.sh           # GitHub credentials
+│   ├── scores.yaml          # Priority scoring configuration
+│   ├── exclude_users.yaml   # User exclusion list
+│   ├── analysis_config.yaml # Custom analysis settings
+│   └── color_scale_config.yaml # Visualization color scales
 ├── scripts/
-│   ├── generate_report.sh  # Main execution script
-│   └── utils.py           # Analysis utilities
-├── tmp/                   # Generated files
-└── .devcontainer/
-    └── Dockerfile        # Development container configuration
+│   ├── generate_report.sh   # Main execution script
+│   └── utils.py             # Analysis utilities
+├── tmp/                     # Generated files
+│   ├── issues.json          # Cached GitHub issues data
+│   └── users/               # User-specific visualizations
+├── .devcontainer/
+│   └── Dockerfile           # Development container configuration
+└── README.md                # Project documentation
 ```
 
 ## Dependencies
@@ -235,6 +288,7 @@ Arguments:
 3. Submit a pull request
 
 ## Best Practices
+
 ### Data Collection
 - Ensure consistent issue labeling
 - Maintain regular sprint cadence
