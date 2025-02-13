@@ -34,6 +34,11 @@ if [ ! -f "configs/secrets.sh" ]; then
 fi
 source configs/secrets.sh
 source configs/env_vars.sh
+if [ -f "configs/dev_env_vars.sh" ]; then
+    source configs/dev_env_vars.sh
+else
+    echo "Warning: configs/dev_env_vars.sh does not exist. Skipping..."
+fi
 
 # Check if DELETE_PREVIOUS_REPORT is defined and true
 if [[ -n "${DELETE_PREVIOUS_REPORT}" ]] && [[ "${DELETE_PREVIOUS_REPORT}" == "true" ]]; then

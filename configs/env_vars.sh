@@ -28,9 +28,5 @@ export PERFORM_LABEL_ANALYSIS=true
 export FLUSH_PRS_METADATA=false
 
 # Verbose mode
-export VERBOSE=true
+export VERBOSE=false
 
-# Date range for report generation (YYYY-MM-DD format)
-# This is development, save a lot of time, comment out when done
-export REPORT_START_DATE="2024-12-01"
-export REPORT_END_DATE="2025-02-14"

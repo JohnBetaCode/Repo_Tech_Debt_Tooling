@@ -3301,10 +3301,17 @@ if __name__ == "__main__":
                 f"\tAll {total_issues + total_prs} items are properly labeled! 🎉 🥳 ✨"
             )
         else:
+            issues_percentage = (issues_with_problems / total_issues) * 100 if total_issues else 0
+            prs_percentage = (prs_with_problems / total_prs) * 100 if total_prs else 0
+
             print(
-                f"\tIssues: {issues_with_problems}/{total_issues} missing required labels"
+                f"\tIssues: {issues_with_problems}/{total_issues} missing required labels ({issues_percentage:.2f}%)"
             )
-            print(f"\tPRs: {prs_with_problems}/{total_prs} missing required labels")
+            print(
+                f"\tPRs: {prs_with_problems}/{total_prs} missing required labels ({prs_percentage:.2f}%)"
+            )
+
+        print("")
 
     else:
         print(

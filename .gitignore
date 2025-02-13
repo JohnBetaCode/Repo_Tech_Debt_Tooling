@@ -5,3 +5,4 @@
 *.pdf
 /tmp
 configs/secrets.sh
+configs/dev_env_vars.sh
