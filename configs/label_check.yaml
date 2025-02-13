@@ -45,6 +45,6 @@ prs:
     - state_qa_check
     - state_in_progress
   rejection:
-    - Reject_Checks
-    - Reject_Traceback
-    - Reject_Unforeseen
+    - Rejected_Checks
+    - Rejected_Traceback
+    - Rejected_Unforeseen

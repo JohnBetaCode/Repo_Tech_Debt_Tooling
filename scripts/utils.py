@@ -769,7 +769,7 @@ def create_pdf_report(
         header_text = f"Report generated on {current_time.strftime('%Y-%m-%d %H:%M:%S')} {tz.zone}"
 
         # Create filename
-        pdf_filename = f"tech_debt_report_{start_date}_to_{end_date}.pdf"
+        pdf_filename = f"tech_debt_issues_report_{start_date}_to_{end_date}.pdf"
         pdf_path = os.path.join(save_path, pdf_filename)
 
         # Define the order of PNG files
@@ -1149,7 +1149,7 @@ def create_users_pdf_report(
             pages.append(user_page)
 
         # Create output filename and save PDF
-        pdf_filename = f"user_reports_{start_date}_to_{end_date}.pdf"
+        pdf_filename = f"tech_debt_user_reports_{start_date}_to_{end_date}.pdf"
         pdf_path = os.path.join(save_path, pdf_filename)
 
         # Save all pages to PDF
@@ -1979,37 +1979,7 @@ def get_label_analysis_data(
     return results
 
 
-def print_rejection_history(rejected_prs: list) -> None:
-    """
-    Print a formatted report of PRs with their rejection label history.
-
-    Args:
-        rejected_prs (list): List of PRs with rejection history
-    """
-    if not rejected_prs:
-        print("No PRs with rejection labels found in the specified date range.")
-        return
-
-    print("\nPRs with Rejection Label History:")
-    print("=================================")
-
-    for pr in rejected_prs:
-        print(f"\n[#{pr['number']}] {pr['title']}")
-        print(f"URL: {pr['url']}")
-        print(f"Created: {pr['created_at']}")
-        print(f"Current State: {pr['state']}")
-        print(f"Current Labels: {', '.join(pr['current_labels'])}")
-        print("\nLabel History:")
-
-        for event in pr["label_history"]:
-            action = "Added" if event["action"] == "labeled" else "Removed"
-            print(f"  • {event['date']}: {action} '{event['label']}'")
-
-        print("-" * 80)
-
-
-# TODO - TODO - TODO
-def get_prs_with_rejections(
+def get_prs_users_with_rejections(
     prs_data: list,
     start_date: str,
     end_date: str,
@@ -2019,7 +1989,22 @@ def get_prs_with_rejections(
     token: str,
 ) -> list:
     """
-    Get PRs with rejection labels between two dates.
+    Retrieves pull requests (PRs) with specified rejection labels within a given date range.
+    Also identifies users associated with these PRs.
+
+    Args:
+        prs_data (list): List of GitHub pull requests.
+        start_date (str): Start date in 'YYYY-MM-DD' format.
+        end_date (str): End date in 'YYYY-MM-DD' format.
+        rejection_labels (list): List of labels indicating rejection.
+        url (str): Base URL for GitHub API requests.
+        accept (str): Accept header for GitHub API requests.
+        token (str): GitHub API token for authentication.
+
+    Returns:
+        list: A tuple containing two elements:
+            - A list of dictionaries with details of PRs that have rejection labels.
+            - A dictionary mapping users to their associated rejection events.
     """
 
     # Set up headers
@@ -2034,6 +2019,7 @@ def get_prs_with_rejections(
         "issues"
     ]
 
+
     if os.getenv("FLUSH_PRS_METADATA", "false").lower() == "true":
         prs_metadata_path = os.path.join(save_path, "prs_metadata")
         if not os.path.exists(prs_metadata_path):
@@ -2045,6 +2031,7 @@ def get_prs_with_rejections(
     os.makedirs(os.path.join(save_path, "prs_metadata"), exist_ok=True)
 
     prs_metadata = {}
+    assignees = {}
     total_prs = len(prs_data_filtered)  # Total number of PRs to process
 
     # Initialize tqdm progress bar
@@ -2054,6 +2041,7 @@ def get_prs_with_rejections(
             if start_date <= pr["created_at"] <= end_date:
                 pr_id = pr["url"].split("/")[-1]
                 pr_metadata = {}
+                assignees[pr_id] = pr["assignees"]
 
                 # check if the file exists
                 file_path = os.path.join(save_path, "prs_metadata", f"{pr_id}.json")
@@ -2062,7 +2050,7 @@ def get_prs_with_rejections(
 
                     try:
                         response = requests.get(
-                            f"{url}?{pr_id}/timeline",
+                            f"{url}/{pr_id}/events",
                             headers=headers,
                         )
                         response.raise_for_status()
@@ -2086,7 +2074,55 @@ def get_prs_with_rejections(
                 # Update the progress bar
             pbar.update(1)
 
-    return prs_metadata
+    # get the prs that have rejection labels and how many times they have been rejected based on the rejection_labels list
+    rejection_events = []
+    rejection_users = {}
+    for pr_id, pr_metadata in prs_metadata.items():
+
+        for event in pr_metadata:
+
+            # Check if 'event' key exists in the event dictionary
+            if event["event"] in ["labeled"]:
+                # Debugging: Print the label to ensure it's being accessed correctly
+
+                if event.get("label")["name"] in rejection_labels:
+
+                    rejection_events.append(
+                        {
+                            "pr_id": pr_id,
+                            "action": event["event"],
+                            "label": event["label"]["name"],
+                            # "user": event["actor"]["login"],
+                            "timestamp": event["created_at"],
+                            "assignees": assignees[pr_id],
+                        }
+                    )
+                    
+                    # add to rejection_users the rejection 
+                    for assignee in assignees[pr_id]:
+                        rejection = {
+                            "pr_id": pr_id,
+                            "label": event["label"]["name"],
+                            "timestamp": event["created_at"],
+                        }
+                        if assignee not in rejection_users:
+                            rejection_users[assignee] = [rejection]
+                        else:
+                            rejection_users[assignee].append(rejection)
+
+    if os.getenv("VERBOSE", "false").lower() == "true":
+        print(f"Number of rejections: {len(rejection_events)}")
+        for rejection in rejection_events:
+            print_dict(rejection)
+
+    if os.getenv("VERBOSE", "false").lower() == "true":
+        print(f"Number of rejection users: {len(rejection_users)}")
+        for user, rejections in rejection_users.items():
+            print(f"\n{'*'*50}\nUser: {user} - total rejections: {len(rejections)}")
+            for rejection in rejections:
+                print_dict(rejection)
+                
+    return rejection_events, rejection_users
 
 
 def create_label_analysis_category_graphs(
@@ -2471,6 +2507,7 @@ def get_prs_created_between_dates(
                     "state": pr["state"],
                     "draft": pr.get("draft", False),  # Include draft status
                     "merged_at": pr.get("merged_at", None),
+                    "assignee": [assignee.get("login") for assignee in pr.get("assignees", [])]
                 }
             )
 
@@ -2531,6 +2568,7 @@ def get_prs_merged_between_dates(
                     "merged_at": merged_at_date.strftime("%Y-%m-%d"),
                     "url": pr["html_url"],
                     "state": pr["state"],
+                    "assignees": [assignee.get("login") for assignee in pr.get("assignees", [])]
                 }
             )
 
@@ -2577,6 +2615,7 @@ def get_open_prs_until_end_date(prs_data: list, end_date: str) -> dict:
                     "created_at": created_at_date.strftime("%Y-%m-%d"),
                     "url": pr["html_url"],
                     "state": pr["state"],
+                    "assignee": [assignee.get("login") for assignee in pr.get("assignees", [])]
                 }
             )
 
@@ -3134,7 +3173,7 @@ if __name__ == "__main__":
             exit(1)
 
         # Get PRs with rejection labels
-        rejected_prs_data = get_prs_with_rejections(
+        rejection_events, rejection_users = get_prs_users_with_rejections(
             prs_data=prs_data,
             start_date=args.start_date,
             end_date=args.end_date,
@@ -3143,6 +3182,14 @@ if __name__ == "__main__":
             accept=GITHUB_ACCEPT,
             token=GITHUB_TOKEN,
         )
+        
+        # TODO - TODO - TODO
+        
+        # create graph for rejection users
+        # create_rejection_users_graph(rejection_users)
+        
+        # create pdf report of prs
+        # create_prs_report(args.start_date, args.end_date)
 
     elif args.report_type == "label-check":
         if not args.start_date or not args.end_date:
