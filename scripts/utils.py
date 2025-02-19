@@ -2727,6 +2727,44 @@ def create_rejection_users_graph(rejection_users: dict, save_path: str = "/works
     plt.close()
 
 
+def create_prs_report(start_date: str, end_date: str, save_path: str = "/workspace/tmp") -> None:
+    """
+    Creates a PDF report for PRs by concatenating images.
+
+    Args:
+        start_date (str): Start date for the report in 'YYYY-MM-DD' format.
+        end_date (str): End date for the report in 'YYYY-MM-DD' format.
+        save_path (str): Directory to save the PDF report.
+    """
+    try:
+        # List of images to include in the report
+        images = ["rejection_users_graph.png"]
+
+        # Load images
+        pages = []
+        for image_name in images:
+            image_path = os.path.join(save_path, image_name)
+            img = Image.open(image_path)
+            if img.mode == "RGBA":
+                img = img.convert("RGB")
+            pages.append(img)
+
+        # Create output filename and save PDF
+        pdf_filename = f"tech_debt_prs_report_{start_date}_to_{end_date}.pdf"
+        pdf_path = os.path.join(save_path, pdf_filename)
+
+        # Save all pages to PDF
+        pages[0].save(
+            pdf_path, "PDF", resolution=300, save_all=True, append_images=pages[1:]
+        )
+        print(f"PRs PDF report saved at: {pdf_path}")
+
+    except FileNotFoundError as e:
+        print(f"Error: {str(e)} - Ensure the image file exists.")
+    except Exception as e:
+        print(f"Error creating PRs PDF: {str(e)}")
+
+
 # ----------------------------------------------------------------
 if __name__ == "__main__":
 
