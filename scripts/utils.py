@@ -2320,8 +2320,15 @@ def create_priority_boxplot_issues_closed(
                 color="blue",
             )
 
+    # Add dates to the title if environment variables are set
+    report_start_date = os.getenv("REPORT_START_DATE")
+    report_end_date = os.getenv("REPORT_END_DATE")
+    date_range = ""
+    if report_start_date and report_end_date:
+        date_range = f" ({report_start_date} to {report_end_date})"
+
     # Add titles and labels
-    plt.title("Mean Time to Repair (MTTR) by Priority Level")
+    plt.title(f"Mean Time to Repair (MTTR) by Priority Level {date_range}")
     plt.xlabel("Days to Close")
     plt.ylabel("Priority Level (n = number of samples)")
 
@@ -2336,6 +2343,22 @@ def create_priority_boxplot_issues_closed(
             fontsize=8,
             color="gray",
         )
+
+    # Calculate mean MTTR for all categories except "UNCATEGORIZED"
+    categories_to_include = [category for category in priority_data if category != "UNCATEGORIZED"]
+    mean_values = [
+        np.mean(priority_data[category]) for category in categories_to_include
+    ]
+    general_mttr = np.mean(mean_values) if mean_values else 0
+
+    # Add text below the graph
+    plt.figtext(
+        0.5, -0.1,  # Adjust the y-coordinate as needed
+        f"Excluding UNCATEGORIZED General MTTR = {general_mttr:.2f} days",
+        ha="center",
+        fontsize=10,
+        color="black"
+    )
 
     # Enable grid
     plt.grid(True, linestyle="--", alpha=0.7)
@@ -2443,8 +2466,15 @@ def create_priority_boxplot_issues_opened(
                 color="blue",
             )
 
+    # Add dates to the title if environment variables are set
+    report_start_date = os.getenv("REPORT_START_DATE")
+    report_end_date = os.getenv("REPORT_END_DATE")
+    date_range = ""
+    if report_start_date and report_end_date:
+        date_range = f" ({report_start_date} to {report_end_date})"
+
     # Add titles and labels
-    plt.title("Distribution of Time of Issues since they were opened by Priority Level")
+    plt.title(f"Distribution of Time of Issues since they were opened by Priority Level{date_range}")
     plt.xlabel("Days Open")
     plt.ylabel("Priority Level (n = number of samples)")
 
