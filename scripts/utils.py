@@ -3290,7 +3290,7 @@ if __name__ == "__main__":
         
         # TODO - TODO - TODO
         # create pdf report of prs
-        # create_prs_report(args.start_date, args.end_date)
+        create_prs_report(start_date=args.start_date, end_date=args.end_date, save_path="/workspace/tmp")
 
     elif args.report_type == "label-check":
         if not args.start_date or not args.end_date:
