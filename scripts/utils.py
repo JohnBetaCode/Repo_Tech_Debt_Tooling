@@ -3221,7 +3221,7 @@ if __name__ == "__main__":
         # TODO - TODO - TODO
         
         # create graph for rejection users
-        # create_rejection_users_graph(rejection_users)
+        create_rejection_users_graph(rejection_users=rejection_users)
         
         # create pdf report of prs
         # create_prs_report(args.start_date, args.end_date)
