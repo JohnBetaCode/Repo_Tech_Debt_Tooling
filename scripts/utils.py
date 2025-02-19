@@ -3284,11 +3284,11 @@ if __name__ == "__main__":
             token=GITHUB_TOKEN,
         )
         
-        # TODO - TODO - TODO
-        
+
         # create graph for rejection users
         create_rejection_users_graph(rejection_users=rejection_users)
         
+        # TODO - TODO - TODO
         # create pdf report of prs
         # create_prs_report(args.start_date, args.end_date)
 
@@ -3419,4 +3419,3 @@ if __name__ == "__main__":
             "Invalid report type. Please use 'list-pr-issues', 'report-issues', 'report-prs', 'label-search', or 'label-check'."
         )
         exit(1)
-    exit()
