@@ -2321,7 +2321,7 @@ def create_priority_boxplot_issues_closed(
             )
 
     # Add titles and labels
-    plt.title("Distribution of Time that takes to Close Issues by Priority Level")
+    plt.title("Mean Time to Repair (MTTR) by Priority Level")
     plt.xlabel("Days to Close")
     plt.ylabel("Priority Level (n = number of samples)")
 
