@@ -512,17 +512,11 @@ def create_issues_score_graph(
         # Move to next week
         current_date += timedelta(days=7)
 
-    print("*"*100)
-    print(closed_categories)
-    print("*"*100)
-
     # Extract data for plotting
     weeks = [data["week_label"] for data in weeks_data]
     open_scores = [data["open_score"] for data in weeks_data]
     created_scores = [data["created_score"] for data in weeks_data]
     closed_scores = [data["closed_score"] for data in weeks_data]
-
-
 
     # Create the visualization
     fig, ax = plt.subplots(figsize=(12, 6))
