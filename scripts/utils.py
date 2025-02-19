@@ -2,7 +2,6 @@
 import os
 import requests
 import json
-from datetime import datetime
 import argparse
 from datetime import date, timedelta
 import matplotlib.pyplot as plt
@@ -13,7 +12,9 @@ from matplotlib.patches import Rectangle
 from PIL import Image, ImageDraw, ImageFont
 import pytz
 from tqdm import tqdm
-
+from matplotlib import cm
+from datetime import datetime
+import glob
 
 # ----------------------------------------------------------------
 def get_github_issues_and_prs_history(
@@ -983,9 +984,7 @@ def create_users_pdf_report(
         save_path (str, optional): Base directory containing user folders. Defaults to "/workspace/tmp"
     """
     try:
-        from PIL import Image, ImageDraw, ImageFont
-        from datetime import datetime
-        import glob
+
 
         # Get dates for filename
         start_date_obj = datetime.strptime(start_date, "%Y-%m-%d").date()
@@ -2660,6 +2659,74 @@ def get_open_prs_until_end_date(prs_data: list, end_date: str) -> dict:
     }
 
 
+def create_rejection_users_graph(rejection_users: dict, save_path: str = "/workspace/tmp") -> None:
+    """
+    Creates and saves a stacked bar chart showing the number of rejections per user, categorized by rejection labels.
+
+    Args:
+        rejection_users (dict): Dictionary mapping users to their associated rejection events.
+        save_path (str): Directory to save the graph.
+    """
+
+    # Prepare data for plotting
+    users = list(rejection_users.keys())
+    categories = set()
+    for rejections in rejection_users.values():
+        for rejection in rejections:
+            categories.add(rejection['label'])
+    categories = sorted(categories)
+
+    # Initialize data structure for plotting
+    data = {category: [0] * len(users) for category in categories}
+
+    # Populate data with rejection counts
+    for i, user in enumerate(users):
+        for rejection in rejection_users[user]:
+            data[rejection['label']][i] += 1
+
+    # Create the stacked bar chart
+    fig, ax = plt.subplots(figsize=(12, 8))
+    bottom = np.zeros(len(users))
+
+    # Use default color cycle
+    colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
+
+    for idx, category in enumerate(categories):
+        counts = data[category]
+        bars = ax.bar(users, counts, label=category, bottom=bottom, color=colors[idx % len(colors)], alpha=0.7)
+        
+        # Add value labels on each bar
+        for bar, count in zip(bars, counts):
+            if count > 0:  # Only label non-zero values
+                ax.text(
+                    bar.get_x() + bar.get_width() / 2,
+                    bar.get_y() + bar.get_height() / 2,
+                    str(count),
+                    ha="center",
+                    va="center",
+                    color="white"  # Use white color for better contrast
+                )
+        
+        bottom += np.array(counts)
+
+    # Add labels and title
+    ax.set_xlabel("Users")
+    ax.set_ylabel("Number of Rejections")
+    ax.set_title("Rejections per User by Category")
+    ax.set_xticks(range(len(users)))
+    ax.set_xticklabels(users, rotation=45, ha="right")
+    ax.legend(title="Rejection Categories")
+
+    # Add grid
+    ax.grid(True, linestyle="--", alpha=0.7)
+
+    # Save the plot
+    filename = "rejection_users_graph.png"
+    plt.savefig(os.path.join(save_path, filename), bbox_inches="tight", dpi=300)
+    print(f"Rejection users graph saved as '{filename}'")
+    plt.close()
+
+
 # ----------------------------------------------------------------
 if __name__ == "__main__":
 
@@ -2861,8 +2928,7 @@ if __name__ == "__main__":
             # Load excluded users from YAML file
             excluded_users = []
             try:
-                import yaml
-
+                
                 with open("configs/exclude_users.yaml", "r") as file:
                     config = yaml.safe_load(file)
                     excluded_users = config.get("excluded_users", [])
