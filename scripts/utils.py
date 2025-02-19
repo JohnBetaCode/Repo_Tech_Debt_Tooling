@@ -289,13 +289,14 @@ def get_issues_closed_between_dates(issues, start_date, end_date):
 
         # Check if the issue was closed within the date range
         if start_date_obj <= closed_at_date <= end_date_obj:
-            closed_issues.append(
-                {
-                    "title": issue["title"],
-                    "closed_at": closed_at_date.strftime("%Y-%m-%d"),
-                    "url": issue["html_url"],
-                }
-            )
+            # closed_issues.append(
+            #     {
+            #         "title": issue["title"],
+            #         "closed_at": closed_at_date.strftime("%Y-%m-%d"),
+            #         "url": issue["html_url"],
+            #     }
+            # )
+            closed_issues.append(issue)
 
     return closed_issues
 
@@ -450,6 +451,8 @@ def create_issues_score_graph(
         priority_scores (dict): Dictionary containing priority configurations with weights and colors
         save_path (str, optional): Directory to save the graph. Defaults to "/workspace/tmp"
     """
+    
+    
     # Load color scale configuration
     try:
         with open("configs/color_scale_config.yaml", "r") as file:
@@ -479,6 +482,7 @@ def create_issues_score_graph(
         closed_issues = get_issues_closed_between_dates(
             issues_data, week_start, week_end
         )
+        
 
         # Calculate scores for each category
         open_categories = categorize_issues_by_priority(open_issues, priority_scores)
@@ -508,11 +512,17 @@ def create_issues_score_graph(
         # Move to next week
         current_date += timedelta(days=7)
 
+    print("*"*100)
+    print(closed_categories)
+    print("*"*100)
+
     # Extract data for plotting
     weeks = [data["week_label"] for data in weeks_data]
     open_scores = [data["open_score"] for data in weeks_data]
     created_scores = [data["created_score"] for data in weeks_data]
     closed_scores = [data["closed_score"] for data in weeks_data]
+
+
 
     # Create the visualization
     fig, ax = plt.subplots(figsize=(12, 6))
@@ -1420,6 +1430,7 @@ def create_user_scores_graph(
     open_scores = [data["open_score"] for data in user_weekly_data]
     created_scores = [data["created_score"] for data in user_weekly_data]
     closed_scores = [data["closed_score"] for data in user_weekly_data]
+
 
     # Create the visualization
     plt.figure(figsize=(12, 6))
