@@ -1904,6 +1904,11 @@ def check_required_labels(item: dict, required_labels: dict, item_type: str) -> 
     """
     # Get the set of labels on the item
     item_labels = {label["name"] for label in item.get("labels", [])}
+    
+    # Skip items with the "ignore_labels" label
+    if "ignore_labels" in item_labels:
+        return {}
+
     results = {}
 
     # Get the required categories for this item type
@@ -3322,7 +3327,6 @@ if __name__ == "__main__":
             token=GITHUB_TOKEN,
         )
         
-
         # create graph for rejection users
         create_rejection_users_graph(rejection_users=rejection_users)
         

@@ -2,7 +2,7 @@ issues:
   category:
     - sys_nav2
     - sys_wireless_station
-    - sys_teleoperation
+    - sys_teleop
     - sys_other
   type:
     - type_feature
@@ -32,7 +32,7 @@ prs:
   category:
     - sys_nav2
     - sys_wireless_station
-    - sys_teleoperation
+    - sys_teleop
     - sys_other
   documentation:
     - doc_done
