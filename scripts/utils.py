@@ -16,6 +16,7 @@ from matplotlib import cm
 from datetime import datetime
 import glob
 
+
 # ----------------------------------------------------------------
 def get_github_issues_and_prs_history(
     url: str, accept: str, token: str, save: bool = True
@@ -452,8 +453,7 @@ def create_issues_score_graph(
         priority_scores (dict): Dictionary containing priority configurations with weights and colors
         save_path (str, optional): Directory to save the graph. Defaults to "/workspace/tmp"
     """
-    
-    
+
     # Load color scale configuration
     try:
         with open("configs/color_scale_config.yaml", "r") as file:
@@ -483,7 +483,6 @@ def create_issues_score_graph(
         closed_issues = get_issues_closed_between_dates(
             issues_data, week_start, week_end
         )
-        
 
         # Calculate scores for each category
         open_categories = categorize_issues_by_priority(open_issues, priority_scores)
@@ -673,6 +672,7 @@ def create_user_distribution_charts(
         for user, issues in zip(usernames, open_issues)
     ]
 
+    # -----------------------------------------------------------------
     # Create labels with both score and percentage for scores
     score_labels = [
         f"{user}\n({score} points)\n({score/total_score*100:.1f}%)" if score > 0 else ""
@@ -693,6 +693,7 @@ def create_user_distribution_charts(
     else:
         values_scores, labels_scores = [], []
 
+    # -----------------------------------------------------------------
     # Plot issues distribution
     if values_issues:
         wedges1, texts1, autotexts1 = ax1.pie(
@@ -984,7 +985,6 @@ def create_users_pdf_report(
         save_path (str, optional): Base directory containing user folders. Defaults to "/workspace/tmp"
     """
     try:
-
 
         # Get dates for filename
         start_date_obj = datetime.strptime(start_date, "%Y-%m-%d").date()
@@ -1423,7 +1423,6 @@ def create_user_scores_graph(
     open_scores = [data["open_score"] for data in user_weekly_data]
     created_scores = [data["created_score"] for data in user_weekly_data]
     closed_scores = [data["closed_score"] for data in user_weekly_data]
-
 
     # Create the visualization
     plt.figure(figsize=(12, 6))
@@ -1904,7 +1903,7 @@ def check_required_labels(item: dict, required_labels: dict, item_type: str) -> 
     """
     # Get the set of labels on the item
     item_labels = {label["name"] for label in item.get("labels", [])}
-    
+
     # Skip items with the "ignore_labels" label
     if "ignore_labels" in item_labels:
         return {}
@@ -2028,7 +2027,6 @@ def get_prs_users_with_rejections(
         "issues"
     ]
 
-
     if os.getenv("FLUSH_PRS_METADATA", "false").lower() == "true":
         prs_metadata_path = os.path.join(save_path, "prs_metadata")
         if not os.path.exists(prs_metadata_path):
@@ -2106,8 +2104,8 @@ def get_prs_users_with_rejections(
                             "assignees": assignees[pr_id],
                         }
                     )
-                    
-                    # add to rejection_users the rejection 
+
+                    # add to rejection_users the rejection
                     for assignee in assignees[pr_id]:
                         rejection = {
                             "pr_id": pr_id,
@@ -2130,7 +2128,7 @@ def get_prs_users_with_rejections(
             print(f"\n{'*'*50}\nUser: {user} - total rejections: {len(rejections)}")
             for rejection in rejections:
                 print_dict(rejection)
-                
+
     return rejection_events, rejection_users
 
 
@@ -2287,7 +2285,9 @@ def calculate_time_to_close_by_priority(
 
 
 def create_priority_boxplot_issues_closed(
-    priority_data: dict, save_path: str = "/workspace/tmp"
+    priority_data: dict,
+    save_path: str = "/workspace/tmp",
+    filename: str = "priority_time_to_close_boxplot.png",
 ) -> None:
     """
     Creates and saves a box plot graph showing the time to close issues by priority level.
@@ -2348,27 +2348,23 @@ def create_priority_boxplot_issues_closed(
             color="gray",
         )
 
-    # Calculate mean MTTR for all categories except "UNCATEGORIZED"
-    categories_to_include = [category for category in priority_data if category != "UNCATEGORIZED"]
-    mean_values = [
-        np.mean(priority_data[category]) for category in categories_to_include
-    ]
-    general_mttr = np.mean(mean_values) if mean_values else 0
+    data_flattened = [value for sublist in data for value in sublist]
+    mttr_median = np.median(data_flattened) if len(data_flattened) > 0 else 0
 
-    # Add text below the graph
+    # Update the text to reflect the change
     plt.figtext(
-        0.5, -0.1,  # Adjust the y-coordinate as needed
-        f"Excluding UNCATEGORIZED General MTTR = {general_mttr:.2f} days",
+        0.5,
+        -0.1,  # Adjust the y-coordinate as needed
+        f"Excluding General MTTR (Median of all categories points grouped) = {mttr_median:.2f} days",
         ha="center",
         fontsize=10,
-        color="black"
+        color="black",
     )
 
     # Enable grid
     plt.grid(True, linestyle="--", alpha=0.7)
 
     # Save the plot
-    filename = "priority_time_to_close_boxplot.png"
     plt.savefig(os.path.join(save_path, filename), bbox_inches="tight", dpi=300)
     plt.close()
 
@@ -2478,7 +2474,9 @@ def create_priority_boxplot_issues_opened(
         date_range = f" ({report_start_date} to {report_end_date})"
 
     # Add titles and labels
-    plt.title(f"Distribution of Time of Issues since they were opened by Priority Level{date_range}")
+    plt.title(
+        f"Distribution of Time of Issues since they were opened by Priority Level{date_range}"
+    )
     plt.xlabel("Days Open")
     plt.ylabel("Priority Level (n = number of samples)")
 
@@ -2546,7 +2544,9 @@ def get_prs_created_between_dates(
                     "state": pr["state"],
                     "draft": pr.get("draft", False),  # Include draft status
                     "merged_at": pr.get("merged_at", None),
-                    "assignee": [assignee.get("login") for assignee in pr.get("assignees", [])]
+                    "assignee": [
+                        assignee.get("login") for assignee in pr.get("assignees", [])
+                    ],
                 }
             )
 
@@ -2607,7 +2607,9 @@ def get_prs_merged_between_dates(
                     "merged_at": merged_at_date.strftime("%Y-%m-%d"),
                     "url": pr["html_url"],
                     "state": pr["state"],
-                    "assignees": [assignee.get("login") for assignee in pr.get("assignees", [])]
+                    "assignees": [
+                        assignee.get("login") for assignee in pr.get("assignees", [])
+                    ],
                 }
             )
 
@@ -2654,7 +2656,9 @@ def get_open_prs_until_end_date(prs_data: list, end_date: str) -> dict:
                     "created_at": created_at_date.strftime("%Y-%m-%d"),
                     "url": pr["html_url"],
                     "state": pr["state"],
-                    "assignee": [assignee.get("login") for assignee in pr.get("assignees", [])]
+                    "assignee": [
+                        assignee.get("login") for assignee in pr.get("assignees", [])
+                    ],
                 }
             )
 
@@ -2664,7 +2668,9 @@ def get_open_prs_until_end_date(prs_data: list, end_date: str) -> dict:
     }
 
 
-def create_rejection_users_graph(rejection_users: dict, save_path: str = "/workspace/tmp") -> None:
+def create_rejection_users_graph(
+    rejection_users: dict, save_path: str = "/workspace/tmp"
+) -> None:
     """
     Creates and saves a stacked bar chart showing the number of rejections per user, categorized by rejection labels.
 
@@ -2678,7 +2684,7 @@ def create_rejection_users_graph(rejection_users: dict, save_path: str = "/works
     categories = set()
     for rejections in rejection_users.values():
         for rejection in rejections:
-            categories.add(rejection['label'])
+            categories.add(rejection["label"])
     categories = sorted(categories)
 
     # Initialize data structure for plotting
@@ -2687,19 +2693,26 @@ def create_rejection_users_graph(rejection_users: dict, save_path: str = "/works
     # Populate data with rejection counts
     for i, user in enumerate(users):
         for rejection in rejection_users[user]:
-            data[rejection['label']][i] += 1
+            data[rejection["label"]][i] += 1
 
     # Create the stacked bar chart
     fig, ax = plt.subplots(figsize=(12, 8))
     bottom = np.zeros(len(users))
 
     # Use default color cycle
-    colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
+    colors = plt.rcParams["axes.prop_cycle"].by_key()["color"]
 
     for idx, category in enumerate(categories):
         counts = data[category]
-        bars = ax.bar(users, counts, label=category, bottom=bottom, color=colors[idx % len(colors)], alpha=0.7)
-        
+        bars = ax.bar(
+            users,
+            counts,
+            label=category,
+            bottom=bottom,
+            color=colors[idx % len(colors)],
+            alpha=0.7,
+        )
+
         # Add value labels on each bar
         for bar, count in zip(bars, counts):
             if count > 0:  # Only label non-zero values
@@ -2709,9 +2722,9 @@ def create_rejection_users_graph(rejection_users: dict, save_path: str = "/works
                     str(count),
                     ha="center",
                     va="center",
-                    color="white"  # Use white color for better contrast
+                    color="white",  # Use white color for better contrast
                 )
-        
+
         bottom += np.array(counts)
 
     # Add labels and title
@@ -2732,7 +2745,9 @@ def create_rejection_users_graph(rejection_users: dict, save_path: str = "/works
     plt.close()
 
 
-def create_prs_report(start_date: str, end_date: str, save_path: str = "/workspace/tmp") -> None:
+def create_prs_report(
+    start_date: str, end_date: str, save_path: str = "/workspace/tmp"
+) -> None:
     """
     Creates a PDF report for PRs by concatenating images.
 
@@ -2768,6 +2783,27 @@ def create_prs_report(start_date: str, end_date: str, save_path: str = "/workspa
         print(f"Error: {str(e)} - Ensure the image file exists.")
     except Exception as e:
         print(f"Error creating PRs PDF: {str(e)}")
+
+
+def filter_issues_by_user(issues_data: list, username: str) -> list:
+    """
+    Filters issues assigned to a specific user.
+
+    Args:
+        issues_data (list): List of GitHub issues.
+        username (str): GitHub username to filter by.
+
+    Returns:
+        list: List of issues assigned to the specified user.
+    """
+    filtered_issues = []
+    for issue in issues_data:
+        assignees = issue.get("assignees", [])
+        # Check if the username is in the list of assignees
+        if any(assignee.get("login") == username for assignee in assignees):
+            filtered_issues.append(issue)
+
+    return filtered_issues
 
 
 # ----------------------------------------------------------------
@@ -2971,7 +3007,7 @@ if __name__ == "__main__":
             # Load excluded users from YAML file
             excluded_users = []
             try:
-                
+
                 with open("configs/exclude_users.yaml", "r") as file:
                     config = yaml.safe_load(file)
                     excluded_users = config.get("excluded_users", [])
@@ -3061,6 +3097,24 @@ if __name__ == "__main__":
                     priority_scores=priority_scores,
                 )
 
+                # ------------------------------------------------------------
+                # From start date to end date, get the time in weeks by the category of PRIORITY label that takes to be closed, the data will be used to create a plotbox graph
+                issues_data_by_user = filter_issues_by_user(issues_data, user)
+
+                priority_closed_time = calculate_time_to_close_by_priority(
+                    issues_data=issues_data_by_user,
+                    scores_config_path="configs/scores.yaml",
+                    start_date=args.start_date,
+                    end_date=args.end_date,
+                )
+
+                create_priority_boxplot_issues_closed(
+                    priority_data=priority_closed_time,
+                    save_path=user_path,
+                    filename=f"{user}_priority_time_to_close_boxplot.png",
+                )
+
+                # ------------------------------------------------------------
                 # Print user statistics if logging is enabled
                 if os.getenv("PRINT_LOGS_ANALYSIS_RESULTS", "false").lower() == "true":
                     print(f"\nWeekly statistics for {user}:")
@@ -3326,13 +3380,17 @@ if __name__ == "__main__":
             accept=GITHUB_ACCEPT,
             token=GITHUB_TOKEN,
         )
-        
+
         # create graph for rejection users
         create_rejection_users_graph(rejection_users=rejection_users)
-        
+
         # TODO - TODO - TODO
         # create pdf report of prs
-        create_prs_report(start_date=args.start_date, end_date=args.end_date, save_path="/workspace/tmp")
+        create_prs_report(
+            start_date=args.start_date,
+            end_date=args.end_date,
+            save_path="/workspace/tmp",
+        )
 
     elif args.report_type == "label-check":
         if not args.start_date or not args.end_date:
@@ -3444,7 +3502,9 @@ if __name__ == "__main__":
                 f"\tAll {total_issues + total_prs} items are properly labeled! 🎉 🥳 ✨"
             )
         else:
-            issues_percentage = (issues_with_problems / total_issues) * 100 if total_issues else 0
+            issues_percentage = (
+                (issues_with_problems / total_issues) * 100 if total_issues else 0
+            )
             prs_percentage = (prs_with_problems / total_prs) * 100 if total_prs else 0
 
             print(
