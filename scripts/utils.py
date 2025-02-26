@@ -985,7 +985,6 @@ def create_users_pdf_report(
         save_path (str, optional): Base directory containing user folders. Defaults to "/workspace/tmp"
     """
     try:
-
         # Get dates for filename
         start_date_obj = datetime.strptime(start_date, "%Y-%m-%d").date()
         end_date_obj = datetime.strptime(end_date, "%Y-%m-%d").date()
@@ -993,7 +992,6 @@ def create_users_pdf_report(
         # Constants for PDF layout
         DPI = 300
         LETTER_WIDTH = int(8.5 * DPI)
-        LETTER_HEIGHT = int(11 * DPI)
         MARGIN = int(0.5 * DPI)
         SPACING = int(0.25 * DPI)
         CONTENT_WIDTH = LETTER_WIDTH - (2 * MARGIN)
@@ -1021,7 +1019,7 @@ def create_users_pdf_report(
         pages = []
 
         # Create title page
-        title_page = Image.new("RGB", (LETTER_WIDTH, LETTER_HEIGHT), "white")
+        title_page = Image.new("RGB", (LETTER_WIDTH, int(11 * DPI)), "white")
         draw = ImageDraw.Draw(title_page)
 
         # Try to load a font, fall back to default if not available
@@ -1051,19 +1049,19 @@ def create_users_pdf_report(
         date_width = date_bbox[2] - date_bbox[0]
 
         draw.text(
-            ((LETTER_WIDTH - title_width) // 2, LETTER_HEIGHT // 3),
+            ((LETTER_WIDTH - title_width) // 2, int(11 * DPI) // 3),
             title,
             font=title_font,
             fill="black",
         )
         draw.text(
-            ((LETTER_WIDTH - subtitle_width) // 2, LETTER_HEIGHT // 2),
+            ((LETTER_WIDTH - subtitle_width) // 2, int(11 * DPI) // 2),
             subtitle,
             font=regular_font,
             fill="black",
         )
         draw.text(
-            ((LETTER_WIDTH - date_width) // 2, LETTER_HEIGHT // 2 + 100),
+            ((LETTER_WIDTH - date_width) // 2, int(11 * DPI) // 2 + 100),
             date_range,
             font=regular_font,
             fill="black",
@@ -1072,7 +1070,7 @@ def create_users_pdf_report(
         pages.append(title_page)
 
         # Create index page
-        index_page = Image.new("RGB", (LETTER_WIDTH, LETTER_HEIGHT), "white")
+        index_page = Image.new("RGB", (LETTER_WIDTH, int(11 * DPI)), "white")
         draw = ImageDraw.Draw(index_page)
 
         # Add index title
@@ -1097,8 +1095,25 @@ def create_users_pdf_report(
 
         # Process each user's images
         for user_data in users_data:
-            # Create new page for user
-            user_page = Image.new("RGB", (LETTER_WIDTH, LETTER_HEIGHT), "white")
+            # Calculate total height needed for the user's page
+            total_height = MARGIN + title_bbox[3] + SPACING
+            processed_images = []
+
+            for image_path in user_data["images"]:
+                img = Image.open(image_path)
+                if img.mode == "RGBA":
+                    img = img.convert("RGB")
+
+                # Scale image to fit width while maintaining aspect ratio
+                scale = CONTENT_WIDTH / img.width
+                new_width = CONTENT_WIDTH
+                new_height = int(img.height * scale)
+
+                processed_images.append((img, new_width, new_height))
+                total_height += new_height + SPACING
+
+            # Create new page for user with calculated height
+            user_page = Image.new("RGB", (LETTER_WIDTH, total_height), "white")
             draw = ImageDraw.Draw(user_page)
 
             # Add user title at the top
@@ -1112,42 +1127,16 @@ def create_users_pdf_report(
                 fill="black",
             )
 
-            # Calculate layout for three graphs
-            graph_height = (
-                LETTER_HEIGHT - (4 * MARGIN)
-            ) // 3  # Divide remaining space by 3
-
-            # Process and paste all three graphs
-            for i, image_path in enumerate(user_data["images"]):
-                img = Image.open(image_path)
-                if img.mode == "RGBA":
-                    img = img.convert("RGB")
-
-                # Scale image to fit width while maintaining aspect ratio
-                scale = CONTENT_WIDTH / img.width
-                new_width = CONTENT_WIDTH
-                new_height = int(img.height * scale)
-
-                # Further scale if height is too large
-                if new_height > graph_height:
-                    scale = graph_height / new_height
-                    new_width = int(new_width * scale)
-                    new_height = graph_height
-
-                img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
-
-                # Calculate y position for each graph
-                y_position = MARGIN + title_bbox[3] + SPACING  # Start after title
-                if i == 1:  # Second graph
-                    y_position += graph_height + SPACING
-                elif i == 2:  # Third graph
-                    y_position += (graph_height + SPACING) * 2
-
+            # Paste all images
+            y_position = MARGIN + title_bbox[3] + SPACING
+            for img, new_width, new_height in processed_images:
                 # Center horizontally
                 x_position = (LETTER_WIDTH - new_width) // 2
-
-                # Paste image
-                user_page.paste(img, (x_position, y_position))
+                user_page.paste(
+                    img.resize((new_width, new_height), Image.Resampling.LANCZOS),
+                    (x_position, y_position),
+                )
+                y_position += new_height + SPACING
 
             pages.append(user_page)
 
@@ -2351,11 +2340,21 @@ def create_priority_boxplot_issues_closed(
     data_flattened = [value for sublist in data for value in sublist]
     mttr_median = np.median(data_flattened) if len(data_flattened) > 0 else 0
 
+    # Add the total number of issues closed
+    plt.figtext(
+        0.5,
+        -0.15,  # Adjust the y-coordinate as needed
+        f"Total number of issues closed: {len(data_flattened)}",
+        ha="center",
+        fontsize=10,
+        color="black",
+    )
+
     # Update the text to reflect the change
     plt.figtext(
         0.5,
         -0.1,  # Adjust the y-coordinate as needed
-        f"Excluding General MTTR (Median of all categories points grouped) = {mttr_median:.2f} days",
+        f"General MTTR (Median of all categories points grouped) = {mttr_median:.2f} days",
         ha="center",
         fontsize=10,
         color="black",
