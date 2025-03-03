@@ -34,6 +34,7 @@ prs:
     - sys_wireless_station
     - sys_teleop
     - sys_other
+    - sys_cicd
   documentation:
     - doc_done
     - doc_no_req
