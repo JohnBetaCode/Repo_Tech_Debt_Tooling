@@ -2800,6 +2800,7 @@ def create_prs_report(
     image_paths = [
         f"{save_path}/pr_rejections_by_week.png",
         f"{save_path}/rejection_users_graph.png",
+        f"{save_path}/prs_by_labels_by_weeks.png",
     ]
 
     # Reserve space for warning text at the bottom (approximately 1 inch)
