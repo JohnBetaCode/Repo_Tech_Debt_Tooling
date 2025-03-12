@@ -50,3 +50,6 @@ prs:
     - Rejected_Checks
     - Rejected_Traceback
     - Rejected_Unforeseen
+  type:
+    - type_release
+    - type_hotfix

@@ -2672,7 +2672,7 @@ def get_open_prs_until_end_date(prs_data: list, end_date: str) -> dict:
     }
 
 
-def create_rejection_users_graph(
+def create_prs_rejection_users_graph(
     rejection_users: dict, save_path: str = "/workspace/tmp", end_date: str = ""
 ) -> None:
     """
@@ -2879,7 +2879,7 @@ def filter_issues_by_user(issues_data: list, username: str) -> list:
     return filtered_issues
 
 
-def create_rejection_by_weeks_graph(
+def create_prs_rejection_by_weeks_graph(
     rejection_events: list,
     start_date: str,
     end_date: str,
@@ -3027,6 +3027,22 @@ def create_rejection_by_weeks_graph(
     plt.close()
 
     print(f"PR rejections by week graph saved to {filepath}")
+
+
+def create_prs_by_labels_by_weeks_graph(
+    prs_data: list, labels: list, end_date: str, start_date: str
+) -> None:
+    """
+    Create a stacked bar chart showing PRs by labels and weeks.
+
+    Args:
+        prs_data: List of PR data.
+        labels: List of labels to filter by.
+        end_date: End date for the report period.
+        start_date: Start date for the report period.
+    """ 
+    
+    pass
 
 
 # ----------------------------------------------------------------
@@ -3613,15 +3629,23 @@ if __name__ == "__main__":
         )
 
         # create graph for rejection users
-        create_rejection_users_graph(
+        create_prs_rejection_users_graph(
             rejection_users=rejection_users, end_date=args.end_date
         )
 
         # create graph for rejection by weeks
-        create_rejection_by_weeks_graph(
+        create_prs_rejection_by_weeks_graph(
             start_date=args.start_date,
             rejection_events=rejection_events,
             end_date=args.end_date,
+        )
+
+        # create graph for rejection by labels
+        create_prs_by_labels_by_weeks_graph(
+            prs_data=prs_data,
+            labels=label_config.get("prs", {}).get("type", []),
+            end_date=args.end_date,
+            start_date=args.start_date,
         )
 
         # create pdf report of prs
