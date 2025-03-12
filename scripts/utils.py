@@ -3030,7 +3030,7 @@ def create_prs_rejection_by_weeks_graph(
 
 
 def create_prs_by_labels_by_weeks_graph(
-    prs_data: list, labels: list, end_date: str, start_date: str
+    prs_data: list, labels: list, end_date: str, start_date: str, save_path: str = "/workspace/tmp"
 ) -> None:
     """
     Create a stacked bar chart showing PRs by labels and weeks.
@@ -3040,9 +3040,72 @@ def create_prs_by_labels_by_weeks_graph(
         labels: List of labels to filter by.
         end_date: End date for the report period.
         start_date: Start date for the report period.
-    """ 
+        save_path: Directory to save the generated graph.
+    """
+    import matplotlib.pyplot as plt
+    import numpy as np
+    import os
+    from datetime import datetime, timedelta
     
-    pass
+    # Convert string dates to datetime objects
+    start_date_dt = datetime.strptime(start_date, "%Y-%m-%d")
+    end_date_dt = datetime.strptime(end_date, "%Y-%m-%d")
+    
+    # Calculate the number of weeks between start and end dates
+    num_weeks = (end_date_dt - start_date_dt).days // 7 + 1
+    
+    # Create a list of week start dates
+    week_dates = [start_date_dt + timedelta(days=i*7) for i in range(num_weeks)]
+    week_labels = [date.strftime("%Y-%m-%d") for date in week_dates]
+    
+    # Initialize data structure to store PR counts by label and week
+    data_by_label = {label: [0] * num_weeks for label in labels}
+    
+    # Count PRs by label and week
+    for pr in prs_data:
+        # Skip PRs outside the date range
+        created_at = datetime.strptime(pr.get("created_at", "").split("T")[0], "%Y-%m-%d")
+        if created_at < start_date_dt or created_at > end_date_dt:
+            continue
+        
+        # Determine which week this PR belongs to
+        week_index = (created_at - start_date_dt).days // 7
+        if week_index >= num_weeks:
+            continue
+        
+        # Check if PR has any of the specified labels
+        pr_labels = [label["name"] for label in pr.get("labels", [])]
+        for label in labels:
+            if label in pr_labels:
+                data_by_label[label][week_index] += 1
+    
+    # Create the stacked bar chart
+    plt.figure(figsize=(12, 8))
+    
+    # Set up the plot
+    width = 0.8
+    bottom = np.zeros(num_weeks)
+    
+    # Plot each label's data as a stacked bar
+    for label, counts in data_by_label.items():
+        plt.bar(week_labels, counts, width, label=label, bottom=bottom)
+        bottom += np.array(counts)
+    
+    plt.title(f"PRs by Label and Week ({start_date} to {end_date})")
+    plt.xlabel("Week")
+    plt.ylabel("Number of PRs")
+    plt.xticks(rotation=45)
+    plt.legend(title="PR Labels")
+    plt.grid(True, linestyle="--", alpha=0.7)
+    plt.tight_layout()
+    
+    # Save the figure
+    filename = f"prs_by_labels_by_weeks.png"
+    filepath = os.path.join(save_path, filename)
+    plt.savefig(filepath)
+    plt.close()
+    
+    print(f"PRs by labels and weeks graph saved to {filepath}")
 
 
 # ----------------------------------------------------------------
