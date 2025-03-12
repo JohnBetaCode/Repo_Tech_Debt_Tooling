@@ -2844,6 +2844,99 @@ def filter_issues_by_user(issues_data: list, username: str) -> list:
     return filtered_issues
 
 
+def create_rejection_by_weeks_graph(
+    rejection_events: list, 
+    end_date: str,
+    save_path: str = "/workspace/tmp"
+) -> None:
+    """
+    Create a stacked bar chart showing PR rejections by week and category.
+    
+    Args:
+        rejection_events: List of PR rejection events with dates and categories
+        end_date: End date for the report period
+        save_path: Path to save the generated graph
+    """
+    if not rejection_events:
+        print("No rejection events data available for graph")
+        return
+
+    # Convert end_date string to datetime
+    end_date_dt = datetime.strptime(end_date, "%Y-%m-%d")
+    
+    # Group rejection events by week and category
+    weeks_data = {}
+    categories = set()
+    
+    for event in rejection_events:
+        # Extract the date from the event structure
+        # The timestamp field contains the date information
+        if 'timestamp' in event:
+            date_str = event['timestamp'].split('T')[0]  # Format: "2024-12-17T19:03:34Z"
+        else:
+            # Skip events without a valid date
+            continue
+            
+        event_date = datetime.strptime(date_str, "%Y-%m-%d")
+        event_week = event_date.isocalendar()[:2]  # (year, week)
+        
+        # Extract category from the event
+        if 'label' in event:
+            # Use the rejection label as category
+            category = event['label']
+        else:
+            category = 'Uncategorized'
+        
+        categories.add(category)
+        
+        if event_week not in weeks_data:
+            weeks_data[event_week] = {}
+        
+        if category not in weeks_data[event_week]:
+            weeks_data[event_week][category] = 0
+        
+        weeks_data[event_week][category] += 1
+    
+    # Sort weeks chronologically
+    sorted_weeks = sorted(weeks_data.keys())
+    categories = sorted(list(categories))
+    
+    # Prepare data for plotting
+    week_labels = []
+    data_by_category = {category: [] for category in categories}
+    
+    for week in sorted_weeks:
+        year, week_num = week
+        week_label = f"{year}-W{week_num:02d}"
+        week_labels.append(week_label)
+        
+        for category in categories:
+            data_by_category[category].append(weeks_data.get(week, {}).get(category, 0))
+    
+    # Create the stacked bar chart
+    plt.figure(figsize=(12, 8))
+    
+    bottom = np.zeros(len(week_labels))
+    for category in categories:
+        plt.bar(week_labels, data_by_category[category], bottom=bottom, label=category)
+        bottom += np.array(data_by_category[category])
+    
+    plt.title(f"PR Rejections by Week and Category (as of {end_date})")
+    plt.xlabel("Week")
+    plt.ylabel("Number of Rejections")
+    plt.xticks(rotation=45)
+    plt.legend(title="Rejection Categories")
+    plt.tight_layout()
+    
+    # Save the figure
+    filename = f"pr_rejections_by_week_{end_date.replace('-', '')}.png"
+    filepath = os.path.join(save_path, filename)
+    plt.savefig(filepath)
+    plt.close()
+    
+    print(f"PR rejections by week graph saved to {filepath}")
+
+
 # ----------------------------------------------------------------
 if __name__ == "__main__":
 
@@ -3432,10 +3525,15 @@ if __name__ == "__main__":
             rejection_users=rejection_users, end_date=args.end_date
         )
         
+        print(rejection_events)
+        
         # create graph for rejection by weeks
         create_rejection_by_weeks_graph(
             rejection_events=rejection_events, end_date=args.end_date
         )
+
+        # REMOVE REMOVE REMOVE
+        exit(0)
 
         # create pdf report of prs
         create_prs_report(
