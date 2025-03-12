@@ -17,6 +17,9 @@ from datetime import datetime
 import glob
 from fpdf import FPDF
 
+from datetime import datetime
+import pytz
+from PIL import Image
 
 # ----------------------------------------------------------------
 def get_github_issues_and_prs_history(
@@ -2773,10 +2776,7 @@ def create_prs_report(
     pdf.multi_cell(0, 0.2, "Data outside the specified date range is not included in this report. PRs created before the start date are not considered, even if they were merged within the date range.", 0, "C")
     pdf.set_text_color(0, 0, 0)  # Reset text color to black
     
-    # Add generation timestamp with timezone
-    from datetime import datetime
-    import pytz
-    
+
     # Get current time in UTC and convert to local timezone
     local_tz = pytz.timezone('America/New_York')  # You can change this to your preferred timezone
     current_time = datetime.now(pytz.utc).astimezone(local_tz)
@@ -2794,7 +2794,7 @@ def create_prs_report(
     for img_path in image_paths:
         if os.path.exists(img_path):
             # Get image dimensions to calculate scaling
-            from PIL import Image
+            
             img_width, img_height = Image.open(img_path).size
             
             # Calculate scaling to fit on page with margins (8.5 inches width with 1 inch margins)
