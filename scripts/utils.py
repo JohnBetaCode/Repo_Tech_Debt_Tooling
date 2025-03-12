@@ -2771,20 +2771,6 @@ def create_prs_report(
     pdf.set_font("Arial", "B", 16)
     pdf.cell(0, 0.5, "Pull Requests Report", 0, 1, "C")
     
-    # Add a warning regarding datasets
-    pdf.set_font("Arial", "B", 10)
-    pdf.set_text_color(255, 0, 0)  # Set text color to red
-    pdf.cell(0, 0.3, "WARNING:", 0, 1, "C")
-    pdf.set_font("Arial", "", 10)
-    pdf.multi_cell(
-        0,
-        0.2,
-        "Data outside the specified date range is not included in this report. PRs created before the start date are not considered, even if they were merged within the date range.",
-        0,
-        "C",
-    )
-    pdf.set_text_color(0, 0, 0)  # Reset text color to black
-
     # Get current time in UTC and convert to local timezone
     local_tz = pytz.timezone(
         "America/New_York"
@@ -2801,8 +2787,11 @@ def create_prs_report(
         f"{save_path}/rejection_users_graph.png",
     ]
 
+    # Reserve space for warning text at the bottom (approximately 1 inch)
+    warning_space = 1.0
+    
     # Calculate available space for images
-    available_height = 11 - pdf.get_y() - 0.5  # Letter height minus current Y position minus bottom margin
+    available_height = 11 - pdf.get_y() - 0.5 - warning_space  # Letter height minus current Y position minus margins minus warning space
     num_images = sum(1 for img_path in image_paths if os.path.exists(img_path))
     
     if num_images > 0:
@@ -2832,6 +2821,24 @@ def create_prs_report(
                 pdf.ln(((img_height / 96) * scale) + 0.2)  # Add small space after image
             else:
                 print(f"\033[93mWarning: {img_path} not found, skipping...\033[0m")
+
+    # Add a warning regarding datasets at the end
+    # Position the warning text at a fixed position from the bottom
+    warning_y = 11 - warning_space
+    pdf.set_y(warning_y)
+    
+    pdf.set_font("Arial", "B", 10)
+    pdf.set_text_color(255, 0, 0)  # Set text color to red
+    pdf.cell(0, 0.3, "WARNING:", 0, 1, "C")
+    pdf.set_font("Arial", "", 10)
+    pdf.multi_cell(
+        0,
+        0.2,
+        "Data outside the specified date range is not included in this report. PRs created before the start date are not considered, even if they were merged within the date range.",
+        0,
+        "C",
+    )
+    pdf.set_text_color(0, 0, 0)  # Reset text color to black
 
     # Save the PDF
     pdf_path = os.path.join(save_path, "prs_report.pdf")
