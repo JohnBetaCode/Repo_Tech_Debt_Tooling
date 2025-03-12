@@ -12,16 +12,9 @@ Key use cases:
 - Issue prioritization insights
 - Historical trend analysis for process improvement
 
-## Motivation
-
 ## Example Report
-![Example Report](https://github.com/user-attachments/assets/c99c43c9-fe16-4309-9f57-9f3c0ff6636a)
-
-![Example Report](https://github.com/user-attachments/assets/e6a10325-84d5-4d89-82e1-2a63cfcf9008)
 
 ![Example Report](https://github.com/user-attachments/assets/ec353487-0125-4e3f-a71c-a12ab2785879)
-
-![Example Report](https://github.com/user-attachments/assets/de3e2b49-b514-4fea-af23-2efc59fd28c9)
 
 ## Features
 
@@ -92,7 +85,6 @@ export FLUSH_PRS_METADATA=false
 export VERBOSE=true
 
 # Date range for report generation (YYYY-MM-DD format)
-# This is development, save a lot of time, comment out when done
 export REPORT_START_DATE="2024-12-01"
 export REPORT_END_DATE="2025-02-14"
 ```
@@ -105,41 +97,119 @@ excluded_users:
   - user2
 ```
 
-Alternatively, you can specify users to include in the analysis by adding them to the `included_users` list:
-```yaml
-included_users:
-  - user1
-  - user2
-```
-
 ### Authentication
-Create `configs/secrets.sh` with your GitHub credentials or ask to your manager for it:
+Create `configs/secrets.sh` with your GitHub credentials:
 ```bash
 export GITHUB_TOKEN="your_github_token"
 export GITHUB_API_URL_ISSUES="https://api.github.com/repos/owner/repo/issues"
 export GITHUB_ACCEPT="application/vnd.github.v3+json"
 ```
 
-### Additional Configuration
-Create `configs/analysis_config.yaml` for custom analysis settings:
-```yaml
-sprint:
-  length_weeks: 2
-  start_day: "Monday"
-  
-labels:
-  technical_debt: ["tech-debt", "refactor"]
-  bugs: ["bug", "defect"]
-  features: ["feature", "enhancement"]
+### Label Configuration
+Create `configs/label_check.yaml` to define required labels for issues and PRs:
 
-metrics:
-  response_time_threshold: 48  # hours
-  resolution_time_target: 168  # hours
+For example
+
+```yaml
+issues:
+  category:
+    - sys_nav2
+    - sys_wireless_station
+    - sys_teleop
+    - sys_other
+    - sys_cicd
+  type:
+    - type_feature
+    - type_bug
+    - type_enhancement
+    - type_hotfix
+  priority:
+    - PRIORITY_LOW
+    - PRIORITY_MEDIUM
+    - PRIORITY_HIGH
+    - PRIORITY_SATANIC
+  departments:
+    - by_AI
+    - by_HW
+    - by_IT
+    - by_DATA
+    - by_MTO
+    - by_OPS
+    - by_SD
+    - by_OTHERS
+prs:
+  priority:
+    - PRIORITY_LOW
+    - PRIORITY_MEDIUM
+    - PRIORITY_HIGH
+    - PRIORITY_SATANIC
+  category:
+    - sys_nav2
+    - sys_wireless_station
+    - sys_teleop
+    - sys_other
+    - sys_cicd
+  documentation:
+    - doc_done
+    - doc_no_req
+    - doc_req
+  status:
+    - state_ready_to_test
+    - state_testing
+    - state_tech_check
+    - state_qa_check
+    - state_in_progress
+  rejection:
+    - Rejected_Checks
+    - Rejected_Traceback
+    - Rejected_Unforeseen
+```
+
+### Priority Scoring
+Create `configs/scores.yaml` to define the scoring system:
+```yaml
+priority_scores:
+  PRIORITY_LOW: 
+    weight: 1
+    color: "#FFFF00"
+  PRIORITY_MEDIUM:
+    weight: 2
+    color: "#FFA500"
+  PRIORITY_HIGH: 
+    weight: 3
+    color: "#F35325"
+  PRIORITY_SATANIC: 
+    weight: 5
+    color: "#8B0000"
+  UNCATEGORIZED: 
+    weight: 0
+    color: "#A9A9A9"
+```
+
+### Color Scale Configuration
+Create `configs/color_scale_config.yaml` to define visualization color scales:
+```yaml
+color_scale:
+  - range: [0, 20]
+    color: "#90EE90"    # Light green
+    name: "Healthy"
+    
+  - range: [20, 50]
+    color: "#FFD700"    # Gold
+    name: "Moderate"
+    
+  - range: [50, 80]
+    color: "#FFA07A"    # Light salmon
+    name: "High"
+    
+  - range: [80, 120]
+    color: "#FF6B6B"    # Light red
+    name: "Critical"
 ```
 
 ## Configuration and Script Files
 
-This project relies on several configuration files and scripts to customize the analysis and report generation. Below is a brief overview of each:
+This project relies on several configuration files and scripts to customize the analysis and report generation:
 
 ### Configuration Files
 
@@ -151,23 +221,23 @@ This project relies on several configuration files and scripts to customize the 
 
 - **`configs/label_check.yaml`**: Lists the required labels for issues and pull requests, categorized by type, priority, and other attributes. This file is used to ensure that all items are properly labeled.
 
+- **`configs/exclude_users.yaml`**: Specifies users to exclude from or include in the analysis.
+
 ### Script Files
 
-- **`scripts/utils.py`**: Contains utility functions for data analysis and visualization. Key functions include creating graphs for issue scores, user distribution, and label analysis. It also handles data loading and filtering based on the provided configurations.
+- **`scripts/utils.py`**: Contains utility functions for data analysis and visualization. Key functions include:
+  - Fetching and processing GitHub issues and PRs
+  - Creating various visualization graphs (activity, scores, priority levels)
+  - Generating PDF reports
+  - Analyzing issues by user, priority, and label
+  - Calculating metrics like time-to-close by priority
 
-- **`scripts/generate_report.sh`**: A shell script that orchestrates the report generation process. It provides a menu-driven interface to select different types of reports and handles the setup of necessary directories and environment variables.
-
-### Usage
-
-To customize the analysis, modify the configuration files as needed. For example, adjust the `env_vars.sh` to enable or disable specific analyses, or update `scores.yaml` to change the priority scoring system.
-
-Run the `generate_report.sh` script to generate reports based on the selected options. The script will use the configurations to determine the scope and details of the analysis.
-
-```shell
-./scripts/generate_report.sh
-```
-
-This command will prompt you to select the type of report you wish to generate and guide you through the process.
+- **`scripts/generate_report.sh`**: A shell script that orchestrates the report generation process. It provides a menu-driven interface to select different types of reports:
+  1. Generate Issues PDF reports (User reports and total report)
+  2. Generate/Print PR and Issues report between dates
+  3. Search PR and Issues by label
+  4. Generate PRs PDF reports
+  5. Check labels in PRs and Issues
 
 ## Installation
 
@@ -200,13 +270,13 @@ docker run -v $(pwd):/workspace github-issues-analysis ./scripts/generate_report
 
 1. Install Python dependencies:
 ```bash
-pip install matplotlib pandas numpy fpdf requests PyYAML tabulate
+pip install matplotlib pandas numpy fpdf requests PyYAML tabulate tqdm
 ```
 
 2. Run the analysis script:
 
 ```bash
-./scripts/generate_report.sh [start_week] [end_week]
+./scripts/generate_report.sh
 ```
 
 ## Usage
@@ -214,21 +284,19 @@ pip install matplotlib pandas numpy fpdf requests PyYAML tabulate
 ### Basic Usage
 
 ```bash
-./scripts/generate_report.sh 1 52  # Analyze entire year
+./scripts/generate_report.sh
 ```
+
+The script will prompt you to select an analysis option and enter date ranges.
 
 ### Script Options
 
 ```bash
-Usage: generate_report.sh [options] [start_week] [end_week]
+Usage: generate_report.sh [options]
 
 Options:
   -h, --help    Show help message
   -d            Delete temporary files after execution
-
-Arguments:
-  start_week    Week number (1-52), default: 1
-  end_week      Week number (1-52), default: current week
 ```
 
 ## Output Files
@@ -250,24 +318,27 @@ Arguments:
 - User-specific visualizations in `tmp/users/{username}/` directories
 
 ## Project Structure
+
 ```
-.
 ├── configs/
-│   ├── env_vars.sh          # Configuration flags
-│   ├── secrets.sh           # GitHub credentials
-│   ├── scores.yaml          # Priority scoring configuration
-│   ├── exclude_users.yaml   # User exclusion list
-│   ├── analysis_config.yaml # Custom analysis settings
-│   └── color_scale_config.yaml # Visualization color scales
+│ ├── env_vars.sh # Configuration flags
+│ ├── dev_env_vars.sh # Development environment variables (optional)
+│ ├── secrets.sh # GitHub credentials
+│ ├── scores.yaml # Priority scoring configuration
+│ ├── exclude_users.yaml # User exclusion list
+│ ├── label_check.yaml # Required labels configuration
+│ └── color_scale_config.yaml # Visualization color scales
 ├── scripts/
-│   ├── generate_report.sh   # Main execution script
-│   └── utils.py             # Analysis utilities
-├── tmp/                     # Generated files
-│   ├── issues.json          # Cached GitHub issues data
-│   └── users/               # User-specific visualizations
+│ ├── generate_report.sh # Main execution script
+│ └── utils.py # Analysis utilities
+├── tmp/ # Generated files
+│ ├── issues.json # Cached GitHub issues data
+│ └── users/ # User-specific visualizations
 ├── .devcontainer/
-│   └── Dockerfile           # Development container configuration
-└── README.md                # Project documentation
+│ ├── Dockerfile # Development container configuration
+│ ├── docker-compose.yml # Docker Compose configuration
+│ └── devcontainer.json # VS Code Dev Container configuration
+└── README.md # Project documentation
 ```
 
 ## Dependencies
@@ -280,7 +351,7 @@ Arguments:
   - requests
   - PyYAML
   - tabulate
-  - Pillow (for PDF generation)
+  - tqdm
 
 ## Contributing
 1. Fork the repository
@@ -313,4 +384,3 @@ Common issues and solutions:
 - **Missing Data**: Ensure proper issue labeling and consistent sprint management
 - **Performance**: Enable caching for large repositories
 - **Report Generation**: Check file permissions and disk space
-

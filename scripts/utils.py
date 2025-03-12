@@ -1299,7 +1299,7 @@ def create_user_issues_graph(
 
     # Save the plot
     plt.savefig(
-        os.path.join(save_path, f"{username}_activity.png"),
+        os.path.join(save_path, f"1-{username}_activity.png"),
         bbox_inches="tight",
         dpi=300,
     )
@@ -1469,7 +1469,7 @@ def create_user_scores_graph(
 
     # Save the plot
     plt.savefig(
-        os.path.join(save_path, f"{username}_scores.png"), bbox_inches="tight", dpi=300
+        os.path.join(save_path, f"2-{username}_scores.png"), bbox_inches="tight", dpi=300
     )
     print(f"Score graph saved for user {username}")
     plt.close()
@@ -1599,7 +1599,7 @@ def create_user_priority_levels_graph(
 
     # Save the plot
     plt.savefig(
-        os.path.join(save_path, f"{username}_priority_levels.png"),
+        os.path.join(save_path, f"3-{username}_priority_levels.png"),
         bbox_inches="tight",
         dpi=300,
     )
@@ -3132,7 +3132,7 @@ if __name__ == "__main__":
                 create_priority_boxplot_issues_closed(
                     priority_data=priority_closed_time,
                     save_path=user_path,
-                    filename=f"{user}_priority_time_to_close_boxplot.png",
+                    filename=f"4-{user}_priority_time_to_close_boxplot.png",
                 )
 
                 # ------------------------------------------------------------
