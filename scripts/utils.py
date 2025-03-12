@@ -2701,20 +2701,22 @@ def create_rejection_users_graph(
     fig, ax = plt.subplots(figsize=(12, 8))
     bottom = np.zeros(len(users))
 
-    # Use default color cycle
-    colors = plt.rcParams["axes.prop_cycle"].by_key()["color"]
-
+    # Use red color scale instead of default colors
+    red_colors = ['#ffcccb', '#ff9999', '#ff6666', '#ff3333', '#ff0000', '#cc0000', '#990000']
+    # If we have more categories than colors, we'll cycle through them
+    
     for idx, category in enumerate(categories):
         counts = data[category]
+        color_idx = idx % len(red_colors)
         bars = ax.bar(
             users,
             counts,
             label=category,
             bottom=bottom,
-            color=colors[idx % len(colors)],
-            alpha=0.7,
+            color=red_colors[color_idx],
+            alpha=0.8,
         )
-
+        
         # Add value labels on each bar
         for bar, count in zip(bars, counts):
             if count > 0:  # Only label non-zero values
@@ -2724,7 +2726,8 @@ def create_rejection_users_graph(
                     str(count),
                     ha="center",
                     va="center",
-                    color="white",  # Use white color for better contrast
+                    color="black",  # Changed from white to black for better visibility
+                    fontweight="bold",  # Added bold to make text more visible
                 )
 
         bottom += np.array(counts)
