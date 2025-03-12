@@ -782,7 +782,6 @@ def create_pdf_report(
         ordered_png_files = [
             "issues_activity.png",
             "issues_score.png",
-            "issues_priority_levels.png",
             f"user_distribution_week_{end_date}.png",
             "issues_priority_levels.png",
             "category_label_analysis.png",
@@ -799,7 +798,7 @@ def create_pdf_report(
             if os.path.exists(file_path):
                 existing_png_files.append(png_file)
             else:
-                print(f"Warning: {png_file} not found, skipping...")
+                print(f"\033[93mWarning: {png_file} not found, skipping...\033[0m")
 
         if not existing_png_files:
             print("No PNG files found to merge")
@@ -3357,7 +3356,11 @@ if __name__ == "__main__":
             print("Error: start-date and end-date are required for report-prs")
             exit(1)
 
-            # Load rejection labels from config
+        print(
+            f"\033[93mWarning: The pipeline excludes PRs created before {args.start_date} because these are not downloaded from GitHub\033[0m"
+        )
+
+        # Load rejection labels from config
         try:
             with open("configs/label_check.yaml", "r") as file:
                 label_config = yaml.safe_load(file)
@@ -3383,7 +3386,6 @@ if __name__ == "__main__":
         # create graph for rejection users
         create_rejection_users_graph(rejection_users=rejection_users)
 
-        # TODO - TODO - TODO
         # create pdf report of prs
         create_prs_report(
             start_date=args.start_date,
