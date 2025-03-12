@@ -2776,75 +2776,77 @@ def create_prs_report(
         end_date: End date in YYYY-MM-DD format
         save_path: Path to save the PDF report
     """
-    # Create a PDF document with letter size (8.5 x 11 inches)
-    pdf = FPDF(orientation="P", unit="in", format="Letter")
+    # Calculate total height needed for the page
+    total_height = 2.0  # Initial space for title and timestamp
+    
+    # List of images to include
+    image_paths = [
+        f"{save_path}/pr_rejections_by_week.png",
+        f"{save_path}/rejection_users_graph.png",
+        f"{save_path}/prs_by_labels_by_weeks.png",
+    ]
+    
+    # Calculate height needed for all images
+    for img_path in image_paths:
+        if os.path.exists(img_path):
+            img_width, img_height = Image.open(img_path).size
+            # Convert from pixels to inches (assuming 96 DPI)
+            img_height_in = img_height / 96
+            total_height += img_height_in + 0.5  # Image height plus spacing
+    
+    # Add space for warning
+    total_height += 1.0
+    
+    # Create a custom-sized PDF with letter width but custom height
+    pdf = FPDF(orientation="P", unit="in", format=(8.5, total_height))
     pdf.add_page()
-    # Disable auto page break to keep everything on one page
-    pdf.set_auto_page_break(auto=False, margin=0.5)
+    # Disable auto page break
+    pdf.set_auto_page_break(auto=False)
 
     # Add title with timestamp
     pdf.set_font("Arial", "B", 16)
     pdf.cell(0, 0.5, "Pull Requests Report", 0, 1, "C")
 
     # Get current time in UTC and convert to local timezone
-    local_tz = pytz.timezone(
-        "America/New_York"
-    )  # You can change this to your preferred timezone
+    local_tz = pytz.timezone("America/New_York")
     current_time = datetime.now(pytz.utc).astimezone(local_tz)
     timestamp = current_time.strftime("%Y-%m-%d %H:%M:%S %Z")
 
     pdf.set_font("Arial", "I", 10)
     pdf.cell(0, 0.3, f"Report generated on: {timestamp}", 0, 1, "C")
+    
+    current_y = pdf.get_y() + 0.2  # Start position for images
 
-    # List of images to include (these are created by other processes)
-    image_paths = [
-        f"{save_path}/pr_rejections_by_week.png",
-        f"{save_path}/rejection_users_graph.png",
-        f"{save_path}/prs_by_labels_by_weeks.png",
-    ]
-
-    # Reserve space for warning text at the bottom (approximately 1 inch)
-    warning_space = 1.0
-
-    # Calculate available space for images
-    available_height = (
-        11 - pdf.get_y() - 0.5 - warning_space
-    )  # Letter height minus current Y position minus margins minus warning space
-    num_images = sum(1 for img_path in image_paths if os.path.exists(img_path))
-
-    if num_images > 0:
-        # Space per image including gap
-        space_per_image = available_height / num_images
-
-        # Add each image to the PDF, centered on the page
-        for img_path in image_paths:
-            if os.path.exists(img_path):
-                # Get image dimensions
-                img_width, img_height = Image.open(img_path).size
-                aspect_ratio = img_width / img_height
-
-                # Calculate scaling to fit on page with margins
-                max_width = 6.5  # 8.5 - 1 - 1 (letter width minus margins)
-                max_height = space_per_image - 0.2  # Allow for some gap between images
-
-                # Scale based on both width and height constraints
-                width_scale = max_width / (img_width / 96)
-                height_scale = max_height / (img_height / 96)
-                scale = min(width_scale, height_scale)
-
-                # Center the image
-                x_pos = (8.5 - (img_width / 96) * scale) / 2
-
-                pdf.image(img_path, x=x_pos, y=pdf.get_y(), w=(img_width / 96) * scale)
-                pdf.ln(((img_height / 96) * scale) + 0.2)  # Add small space after image
-            else:
-                print(f"\033[93mWarning: {img_path} not found, skipping...\033[0m")
+    # Add each image to the PDF at its original size
+    for img_path in image_paths:
+        if os.path.exists(img_path):
+            # Get image dimensions
+            img_width, img_height = Image.open(img_path).size
+            
+            # Convert from pixels to inches (assuming 96 DPI)
+            img_width_in = img_width / 96
+            img_height_in = img_height / 96
+            
+            # If image is wider than page width, scale it to fit the width
+            page_width = 7.5  # Letter width minus margins
+            if img_width_in > page_width:
+                scale_factor = page_width / img_width_in
+                img_width_in = page_width
+                img_height_in = img_height_in * scale_factor
+            
+            # Center the image horizontally
+            x_pos = (8.5 - img_width_in) / 2
+            
+            # Add the image at the current Y position
+            pdf.image(img_path, x=x_pos, y=current_y, w=img_width_in)
+            
+            # Update Y position for next image
+            current_y += img_height_in + 0.5  # Add 0.5 inch space after each image
+        else:
+            print(f"\033[93mWarning: {img_path} not found, skipping...\033[0m")
 
     # Add a warning regarding datasets at the end
-    # Position the warning text at a fixed position from the bottom
-    warning_y = 11 - warning_space
-    pdf.set_y(warning_y)
-
+    pdf.set_y(current_y)
     pdf.set_font("Arial", "B", 10)
     pdf.set_text_color(255, 0, 0)  # Set text color to red
     pdf.cell(0, 0.3, "WARNING:", 0, 1, "C")
