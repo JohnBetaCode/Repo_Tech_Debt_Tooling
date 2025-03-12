@@ -359,6 +359,7 @@ def create_issues_activity_graph(
     data: list,
     headers: list,
     save_path: str = "/workspace/tmp",
+    end_date: str = "",
 ) -> None:
 
     # Get indices from headers
@@ -417,7 +418,7 @@ def create_issues_activity_graph(
     for i, value in enumerate(open_issues_data):
         plt.text(x_positions[i], value, str(value), ha="center", va="bottom")
 
-    plt.title("GitHub Issues Activity by Week")
+    plt.title(f"GitHub Issues Activity until {end_date}")
     plt.xlabel("Week Number")
     plt.ylabel("Number of Issues")
     plt.grid(True, linestyle="--", alpha=0.7)
@@ -586,7 +587,7 @@ def create_issues_score_graph(
     for i, value in enumerate(open_scores):
         plt.text(x_positions[i], value, str(value), ha="center", va="bottom")
 
-    plt.title("GitHub Issues Priority Scores by Week")
+    plt.title(f"GitHub Issues Priority Scores by Week until {end_date}")
     plt.xlabel("Week Number")
     plt.ylabel("Priority Score")
     plt.grid(True, linestyle="--", alpha=0.7)
@@ -704,7 +705,7 @@ def create_user_distribution_charts(
             startangle=90,
         )
     ax1.set_title(
-        f"Issues Distribution - Week {end_date}\nTotal Issues: {total_issues}"
+        f"Issues Distribution until {end_date}\nTotal Issues: {total_issues}"
     )
 
     # Plot scores distribution
@@ -715,7 +716,7 @@ def create_user_distribution_charts(
             autopct="",  # We already include percentages in labels
             startangle=90,
         )
-    ax2.set_title(f"Score Distribution - Week {end_date}\nTotal Score: {total_score}")
+    ax2.set_title(f"Score Distribution until {end_date}\nTotal Score: {total_score}")
 
     # Add warning text at the bottom of the figure
     warning_text = (
@@ -958,7 +959,7 @@ def create_issues_score_levels_graph(
     ax1.set_xticklabels(weeks, rotation=45)
     ax1.set_xlabel("Week Number")
 
-    plt.title("GitHub Issues by Priority Level per Week")
+    plt.title(f"GitHub Issues by Priority Level until {end_date}")
     ax1.set_ylabel("Number of Issues")
     ax1.grid(True, linestyle="--", alpha=0.7)
     ax1.legend(loc="upper left")
@@ -2160,7 +2161,7 @@ def create_label_analysis_category_graphs(
         # Add labels and title
         ax.set_xlabel("Week Number")
         ax.set_ylabel("Count")
-        ax.set_title(f"Label Analysis for {category}")
+        ax.set_title(f"Label Analysis for {category} until {end_date}")
         ax.set_xticks(range(len(weeks)))
         ax.set_xticklabels(weeks, rotation=45)
         ax.legend()
@@ -3000,7 +3001,7 @@ if __name__ == "__main__":
         # --------------------------------------------------------------
         # Create activity graph only if PERFORM_SCORE_ANALYSIS is true
         if os.getenv("PERFORM_QUANTITATIVE_ANALYSIS", "false").lower() == "true":
-            create_issues_activity_graph(data=table_data, headers=headers)
+            create_issues_activity_graph(data=table_data, headers=headers, end_date=args.end_date)
 
         # --------------------------------------------------------------
         # Create score graph only if PERFORM_SCORE_ANALYSIS is true
@@ -3132,7 +3133,7 @@ if __name__ == "__main__":
                 create_priority_boxplot_issues_closed(
                     priority_data=priority_closed_time,
                     save_path=user_path,
-                    filename=f"4-{user}_priority_time_to_close_boxplot.png",
+                    filename=f"{user}_priority_time_to_close_boxplot.png",
                 )
 
                 # ------------------------------------------------------------
