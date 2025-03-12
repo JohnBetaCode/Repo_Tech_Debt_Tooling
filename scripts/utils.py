@@ -2804,8 +2804,8 @@ def create_prs_report(
             image_heights.append(img_height_in)
             total_height += img_height_in + 0.3  # Image height plus spacing
     
-    # Add space for warning (approximately 0.7 inches)
-    total_height += 0.7
+    # Add more space for warning (increase from 0.7 to 1.2 inches)
+    total_height += 1.2
     
     # Create a custom-sized PDF with letter width but custom height
     pdf = FPDF(orientation="P", unit="in", format=(8.5, total_height))
@@ -2860,13 +2860,19 @@ def create_prs_report(
     pdf.set_text_color(255, 0, 0)  # Set text color to red
     pdf.cell(0, 0.3, "WARNING:", 0, 1, "C")
     pdf.set_font("Arial", "", 10)
+    
+    # Increase line height and add more space between lines
+    warning_text = "Data outside the specified date range is not included in this report. PRs created before the start date are not considered, even if they were merged within the date range."
     pdf.multi_cell(
         0,
-        0.2,
-        "Data outside the specified date range is not included in this report. PRs created before the start date are not considered, even if they were merged within the date range.",
+        0.25,  # Increased line height
+        warning_text,
         0,
         "C",
     )
+    
+    # Add extra space after warning
+    pdf.ln(1.0)
     pdf.set_text_color(0, 0, 0)  # Reset text color to black
 
     # Save the PDF
@@ -3059,11 +3065,7 @@ def create_prs_by_labels_by_weeks_graph(
         start_date: Start date for the report period.
         save_path: Directory to save the generated graph.
     """
-    import matplotlib.pyplot as plt
-    import numpy as np
-    import os
-    from datetime import datetime, timedelta
-    
+   
     # Convert string dates to datetime objects
     start_date_dt = datetime.strptime(start_date, "%Y-%m-%d")
     end_date_dt = datetime.strptime(end_date, "%Y-%m-%d")
