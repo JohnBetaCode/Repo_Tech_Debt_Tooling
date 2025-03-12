@@ -2704,8 +2704,8 @@ def create_prs_rejection_users_graph(
         for rejection in rejection_users[user]:
             data[rejection["label"]][i] += 1
 
-    # Create the stacked bar chart
-    fig, ax = plt.subplots(figsize=(12, 8))
+    # Create the stacked bar chart with extra space at the bottom for the warning
+    fig, ax = plt.subplots(figsize=(12, 8))  # Increased height to accommodate warning
     bottom = np.zeros(len(users))
 
     # Use red color scale instead of default colors
@@ -2741,8 +2741,8 @@ def create_prs_rejection_users_graph(
                     str(int(count)),
                     ha="center",
                     va="center",
-                    color="black",  # Changed from white to black for better visibility
-                    fontweight="bold",  # Added bold to make text more visible
+                    color="black",
+                    fontweight="bold",
                 )
 
         bottom += np.array(counts)
@@ -2757,8 +2757,28 @@ def create_prs_rejection_users_graph(
 
     # Add grid
     ax.grid(True, linestyle="--", alpha=0.7)
+    
+    # Adjust layout to make room for the warning text
+    plt.tight_layout(rect=[0, 0.1, 1, 0.95])
+    
+    # Add warning text about open PRs in a separate text box below the graph
+    warning_text = "Note: This analysis does not include currently open PRs. Open PRs will be considered when merged."
+    fig.text(
+        0.5, 
+        0.02,  # Position at the bottom with enough space
+        warning_text,
+        ha='center',
+        va='center',
+        fontsize=11,
+        bbox=dict(
+            boxstyle='round,pad=0.8',
+            facecolor='yellow',
+            alpha=0.3,
+            edgecolor='orange'
+        )
+    )
 
-    # Save the plot
+    # Save the plot with extra padding at the bottom
     filename = "rejection_users_graph.png"
     plt.savefig(os.path.join(save_path, filename), bbox_inches="tight", dpi=300)
     print(f"Rejection users graph saved as '{filename}'")
@@ -2992,7 +3012,7 @@ def create_prs_rejection_by_weeks_graph(
 
     for week in all_weeks:
         year, week_num = week
-        week_label = f"{year}-W{week_num:02d}"
+        week_label = f"{str(year)[-2:]}-W{week_num:02d}"
         week_labels.append(week_label)
 
         for category in categories:
@@ -3070,10 +3090,23 @@ def create_prs_by_labels_by_weeks_graph(
     start_date_dt = datetime.strptime(start_date, "%Y-%m-%d")
     end_date_dt = datetime.strptime(end_date, "%Y-%m-%d")
     
-    # Calculate the number of weeks between start and end dates
-    num_weeks = (end_date_dt - start_date_dt).days // 7 + 1
+    # Adjust start_date to the previous Monday if it's not already a Monday
+    # Monday is weekday 0 in Python's datetime
+    days_since_monday = start_date_dt.weekday()
+    if days_since_monday > 0:
+        start_date_dt = start_date_dt - timedelta(days=days_since_monday)
     
-    # Create a list of week start dates
+    # Adjust end_date to the next Sunday if it's not already a Sunday
+    # Sunday is weekday 6 in Python's datetime
+    days_until_sunday = 6 - end_date_dt.weekday()
+    if days_until_sunday > 0:
+        end_date_dt = end_date_dt + timedelta(days=days_until_sunday)
+    
+    # Calculate the number of weeks between start and end dates
+    # Add 1 because we want to include both the start and end weeks
+    num_weeks = ((end_date_dt - start_date_dt).days + 1) // 7
+    
+    # Create a list of week start dates (all Mondays)
     week_dates = [start_date_dt + timedelta(days=i*7) for i in range(num_weeks)]
     
     # Format week labels as "YY-W##" (last two digits of year and week number)
@@ -3088,13 +3121,20 @@ def create_prs_by_labels_by_weeks_graph(
     
     # Count PRs by label and week
     for pr in prs_data:
+        # Skip PRs that aren't closed yet or don't have a closed_at date
+        if pr.get("state") != "closed" or not pr.get("closed_at"):
+            continue
+            
+        # Use closed_at date instead of created_at
+        closed_at = datetime.strptime(pr.get("closed_at", "").split("T")[0], "%Y-%m-%d")
+        
         # Skip PRs outside the date range
-        created_at = datetime.strptime(pr.get("created_at", "").split("T")[0], "%Y-%m-%d")
-        if created_at < start_date_dt or created_at > end_date_dt:
+        if closed_at < start_date_dt or closed_at > end_date_dt:
             continue
         
         # Determine which week this PR belongs to
-        week_index = (created_at - start_date_dt).days // 7
+        # Calculate days since the start date and divide by 7 to get the week index
+        week_index = (closed_at - start_date_dt).days // 7
         if week_index >= num_weeks:
             continue
         
@@ -3124,7 +3164,7 @@ def create_prs_by_labels_by_weeks_graph(
         
         bottom += np.array(counts)
     
-    plt.title(f"PRs by Label and Week ({start_date} to {end_date})")
+    plt.title(f"Closed PRs by Label and Week ({start_date} to {end_date})")
     plt.xlabel("Week")
     plt.ylabel("Number of PRs")
     plt.xticks(rotation=45)
