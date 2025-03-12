@@ -16,6 +16,7 @@ from PIL import Image, ImageDraw, ImageFont
 from tqdm import tqdm
 from fpdf import FPDF
 
+
 # ----------------------------------------------------------------
 def get_github_issues_and_prs_history(
     url: str,
@@ -80,6 +81,7 @@ def get_github_issues_and_prs_history(
         print(f"Github data saved in {filename}")
 
     return issues
+
 
 def save_file(data: list, path: str, filename="file.json"):
     """
@@ -2702,9 +2704,17 @@ def create_rejection_users_graph(
     bottom = np.zeros(len(users))
 
     # Use red color scale instead of default colors
-    red_colors = ['#ffcccb', '#ff9999', '#ff6666', '#ff3333', '#ff0000', '#cc0000', '#990000']
+    red_colors = [
+        "#ffcccb",
+        "#ff9999",
+        "#ff6666",
+        "#ff3333",
+        "#ff0000",
+        "#cc0000",
+        "#990000",
+    ]
     # If we have more categories than colors, we'll cycle through them
-    
+
     for idx, category in enumerate(categories):
         counts = data[category]
         color_idx = idx % len(red_colors)
@@ -2716,7 +2726,7 @@ def create_rejection_users_graph(
             color=red_colors[color_idx],
             alpha=0.8,
         )
-        
+
         # Add value labels on each bar
         for bar, count in zip(bars, counts):
             if count > 0:  # Only label non-zero values
@@ -2770,7 +2780,7 @@ def create_prs_report(
     # Add title with timestamp
     pdf.set_font("Arial", "B", 16)
     pdf.cell(0, 0.5, "Pull Requests Report", 0, 1, "C")
-    
+
     # Get current time in UTC and convert to local timezone
     local_tz = pytz.timezone(
         "America/New_York"
@@ -2789,15 +2799,17 @@ def create_prs_report(
 
     # Reserve space for warning text at the bottom (approximately 1 inch)
     warning_space = 1.0
-    
+
     # Calculate available space for images
-    available_height = 11 - pdf.get_y() - 0.5 - warning_space  # Letter height minus current Y position minus margins minus warning space
+    available_height = (
+        11 - pdf.get_y() - 0.5 - warning_space
+    )  # Letter height minus current Y position minus margins minus warning space
     num_images = sum(1 for img_path in image_paths if os.path.exists(img_path))
-    
+
     if num_images > 0:
         # Space per image including gap
         space_per_image = available_height / num_images
-        
+
         # Add each image to the PDF, centered on the page
         for img_path in image_paths:
             if os.path.exists(img_path):
@@ -2808,15 +2820,15 @@ def create_prs_report(
                 # Calculate scaling to fit on page with margins
                 max_width = 6.5  # 8.5 - 1 - 1 (letter width minus margins)
                 max_height = space_per_image - 0.2  # Allow for some gap between images
-                
+
                 # Scale based on both width and height constraints
                 width_scale = max_width / (img_width / 96)
                 height_scale = max_height / (img_height / 96)
                 scale = min(width_scale, height_scale)
-                
+
                 # Center the image
                 x_pos = (8.5 - (img_width / 96) * scale) / 2
-                
+
                 pdf.image(img_path, x=x_pos, y=pdf.get_y(), w=(img_width / 96) * scale)
                 pdf.ln(((img_height / 96) * scale) + 0.2)  # Add small space after image
             else:
@@ -2826,7 +2838,7 @@ def create_prs_report(
     # Position the warning text at a fixed position from the bottom
     warning_y = 11 - warning_space
     pdf.set_y(warning_y)
-    
+
     pdf.set_font("Arial", "B", 10)
     pdf.set_text_color(255, 0, 0)  # Set text color to red
     pdf.cell(0, 0.3, "WARNING:", 0, 1, "C")
@@ -2868,14 +2880,14 @@ def filter_issues_by_user(issues_data: list, username: str) -> list:
 
 
 def create_rejection_by_weeks_graph(
-    rejection_events: list, 
+    rejection_events: list,
     start_date: str,
     end_date: str,
-    save_path: str = "/workspace/tmp"
+    save_path: str = "/workspace/tmp",
 ) -> None:
     """
     Create a stacked bar chart showing PR rejections by week and category.
-    
+
     Args:
         rejection_events: List of PR rejection events with dates and categories
         start_date: Start date for the report period
@@ -2889,118 +2901,131 @@ def create_rejection_by_weeks_graph(
     # Convert start_date and end_date strings to datetime
     start_date_dt = datetime.strptime(start_date, "%Y-%m-%d")
     end_date_dt = datetime.strptime(end_date, "%Y-%m-%d")
-    
+
     # Group rejection events by week and category
     weeks_data = {}
     categories = set()
-    
+
     for event in rejection_events:
         # Extract the date from the event structure
         # The timestamp field contains the date information
-        if 'timestamp' in event:
-            date_str = event['timestamp'].split('T')[0]  # Format: "2024-12-17T19:03:34Z"
+        if "timestamp" in event:
+            date_str = event["timestamp"].split("T")[
+                0
+            ]  # Format: "2024-12-17T19:03:34Z"
         else:
             # Skip events without a valid date
             continue
-            
+
         event_date = datetime.strptime(date_str, "%Y-%m-%d")
-        
+
         # Skip events outside our date range
         if event_date < start_date_dt or event_date > end_date_dt:
             continue
-            
+
         # Get the week ending on Sunday
         # Find the next Sunday (or same day if it's a Sunday)
         days_until_sunday = (6 - event_date.weekday()) % 7
         week_end = event_date + timedelta(days=days_until_sunday)
         week_key = (week_end.year, week_end.isocalendar()[1])
-        
+
         # Extract category from the event
-        if 'label' in event:
+        if "label" in event:
             # Use the rejection label as category
-            category = event['label']
+            category = event["label"]
         else:
-            category = 'Uncategorized'
-        
+            category = "Uncategorized"
+
         categories.add(category)
-        
+
         if week_key not in weeks_data:
             weeks_data[week_key] = {}
-        
+
         if category not in weeks_data[week_key]:
             weeks_data[week_key][category] = 0
-        
+
         weeks_data[week_key][category] += 1
-    
+
     # Generate all weeks between start_date and end_date
     all_weeks = []
     current = start_date_dt
-    
+
     # Find the first Sunday from start date
     days_until_sunday = (6 - current.weekday()) % 7
     current_sunday = current + timedelta(days=days_until_sunday)
-    
+
     # Generate all Sundays until end_date
     while current_sunday <= end_date_dt:
         week_key = (current_sunday.year, current_sunday.isocalendar()[1])
         all_weeks.append(week_key)
         current_sunday += timedelta(days=7)
-    
+
     # Sort weeks chronologically
     categories = sorted(list(categories))
-    
+
     # Prepare data for plotting
     week_labels = []
     data_by_category = {category: [] for category in categories}
-    
+
     for week in all_weeks:
         year, week_num = week
         week_label = f"{year}-W{week_num:02d}"
         week_labels.append(week_label)
-        
+
         for category in categories:
             data_by_category[category].append(weeks_data.get(week, {}).get(category, 0))
-    
+
     # Create a red color scale - not too dark or too light
     red_cmap = plt.cm.Reds
     # Use a range from 0.3 to 0.8 to avoid too light or too dark colors
     red_colors = [red_cmap(i) for i in np.linspace(0.3, 0.8, len(categories))]
-    
+
     # Create the stacked bar chart
     plt.figure(figsize=(12, 8))
-    
+
     bottom = np.zeros(len(week_labels))
     for i, category in enumerate(categories):
-        bars = plt.bar(week_labels, data_by_category[category], bottom=bottom, 
-                      label=category, color=red_colors[i])
-        
+        bars = plt.bar(
+            week_labels,
+            data_by_category[category],
+            bottom=bottom,
+            label=category,
+            color=red_colors[i],
+        )
+
         # Add data values inside the bars
         for j, bar in enumerate(bars):
             value = data_by_category[category][j]
             if value > 0:  # Only show non-zero values
                 height = bar.get_height()
                 # Position the text in the middle of each bar segment
-                text_y = bottom[j] + height/2
-                plt.text(bar.get_x() + bar.get_width()/2, text_y, 
-                         str(value), ha='center', va='center', 
-                         color='black', fontweight='bold')
-        
+                text_y = bottom[j] + height / 2
+                plt.text(
+                    bar.get_x() + bar.get_width() / 2,
+                    text_y,
+                    str(value),
+                    ha="center",
+                    va="center",
+                    color="black",
+                    fontweight="bold",
+                )
+
         bottom += np.array(data_by_category[category])
-    
+
     plt.title(f"PR Rejections by Week and Category ({start_date} to {end_date})")
     plt.xlabel("Week")
     plt.ylabel("Number of Rejections")
     plt.xticks(rotation=45)
     plt.legend(title="Rejection Categories")
-    plt.grid(True, linestyle='--', alpha=0.7)  # Add grid with dashed lines
+    plt.grid(True, linestyle="--", alpha=0.7)  # Add grid with dashed lines
     plt.tight_layout()
-    
+
     # Save the figure
     filename = f"pr_rejections_by_week.png"
     filepath = os.path.join(save_path, filename)
     plt.savefig(filepath)
     plt.close()
-    
+
     print(f"PR rejections by week graph saved to {filepath}")
 
 
@@ -3595,7 +3620,8 @@ if __name__ == "__main__":
         # create graph for rejection by weeks
         create_rejection_by_weeks_graph(
             start_date=args.start_date,
-            rejection_events=rejection_events, end_date=args.end_date
+            rejection_events=rejection_events,
+            end_date=args.end_date,
         )
 
         # create pdf report of prs
