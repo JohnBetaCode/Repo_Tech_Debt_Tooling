@@ -3,27 +3,27 @@ import os
 import requests
 import json
 import argparse
-from datetime import date, timedelta
-import matplotlib.pyplot as plt
-from tabulate import tabulate
-import numpy as np
-import yaml
-from matplotlib.patches import Rectangle
-from PIL import Image, ImageDraw, ImageFont
-import pytz
-from tqdm import tqdm
-from matplotlib import cm
-from datetime import datetime
 import glob
-from fpdf import FPDF
-
-from datetime import datetime
+import yaml
+from datetime import date, datetime, timedelta
 import pytz
-from PIL import Image
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.patches import Rectangle
+from matplotlib import cm
+from tabulate import tabulate
+from PIL import Image, ImageDraw, ImageFont
+from tqdm import tqdm
+from fpdf import FPDF
 
 # ----------------------------------------------------------------
 def get_github_issues_and_prs_history(
-    url: str, accept: str, token: str, save: bool = True, start_date: str = "", end_date: str = ""
+    url: str,
+    accept: str,
+    token: str,
+    save: bool = True,
+    start_date: str = "",
+    end_date: str = "",
 ):
     """
     Retrieves issues and pull requests from GitHub API with pagination support.
@@ -80,7 +80,6 @@ def get_github_issues_and_prs_history(
         print(f"Github data saved in {filename}")
 
     return issues
-
 
 def save_file(data: list, path: str, filename="file.json"):
     """
@@ -707,9 +706,7 @@ def create_user_distribution_charts(
             autopct="",  # We already include percentages in labels
             startangle=90,
         )
-    ax1.set_title(
-        f"Issues Distribution until {end_date}\nTotal Issues: {total_issues}"
-    )
+    ax1.set_title(f"Issues Distribution until {end_date}\nTotal Issues: {total_issues}")
 
     # Plot scores distribution
     if values_scores:
@@ -1473,7 +1470,9 @@ def create_user_scores_graph(
 
     # Save the plot
     plt.savefig(
-        os.path.join(save_path, f"2-{username}_scores.png"), bbox_inches="tight", dpi=300
+        os.path.join(save_path, f"2-{username}_scores.png"),
+        bbox_inches="tight",
+        dpi=300,
     )
     print(f"Score graph saved for user {username}")
     plt.close()
@@ -2753,7 +2752,7 @@ def create_prs_report(
 ) -> None:
     """
     Create a PDF report for PRs data between the specified dates.
-    
+
     Args:
         start_date: Start date in YYYY-MM-DD format
         end_date: End date in YYYY-MM-DD format
@@ -2763,52 +2762,61 @@ def create_prs_report(
     pdf = FPDF(orientation="P", unit="in", format="Letter")
     pdf.add_page()
     pdf.set_auto_page_break(auto=True, margin=0.5)
-    
+
     # Add title with timestamp
     pdf.set_font("Arial", "B", 16)
     pdf.cell(0, 0.5, "Pull Requests Report", 0, 1, "C")
-    
+
     # Add a warning regarding datasets
     pdf.set_font("Arial", "B", 10)
     pdf.set_text_color(255, 0, 0)  # Set text color to red
     pdf.cell(0, 0.3, "WARNING:", 0, 1, "C")
     pdf.set_font("Arial", "", 10)
-    pdf.multi_cell(0, 0.2, "Data outside the specified date range is not included in this report. PRs created before the start date are not considered, even if they were merged within the date range.", 0, "C")
+    pdf.multi_cell(
+        0,
+        0.2,
+        "Data outside the specified date range is not included in this report. PRs created before the start date are not considered, even if they were merged within the date range.",
+        0,
+        "C",
+    )
     pdf.set_text_color(0, 0, 0)  # Reset text color to black
-    
 
     # Get current time in UTC and convert to local timezone
-    local_tz = pytz.timezone('America/New_York')  # You can change this to your preferred timezone
+    local_tz = pytz.timezone(
+        "America/New_York"
+    )  # You can change this to your preferred timezone
     current_time = datetime.now(pytz.utc).astimezone(local_tz)
     timestamp = current_time.strftime("%Y-%m-%d %H:%M:%S %Z")
-    
+
     pdf.set_font("Arial", "I", 10)
     pdf.cell(0, 0.3, f"Report generated on: {timestamp}", 0, 1, "C")
-    
+
     # List of images to include (these are created by other processes)
     image_paths = [
         f"{save_path}/rejection_users_graph.png",
     ]
-    
+
     # Add each image to the PDF, centered on the page
     for img_path in image_paths:
         if os.path.exists(img_path):
             # Get image dimensions to calculate scaling
-            
+
             img_width, img_height = Image.open(img_path).size
-            
+
             # Calculate scaling to fit on page with margins (8.5 inches width with 1 inch margins)
             max_width = 6.5  # 8.5 - 1 - 1 (letter width minus margins)
-            scale = min(max_width / (img_width / 96), 4.0)  # Convert pixels to inches (96 dpi) and cap height
-            
+            scale = min(
+                max_width / (img_width / 96), 4.0
+            )  # Convert pixels to inches (96 dpi) and cap height
+
             # Center the image
             x_pos = (8.5 - (img_width / 96) * scale) / 2
-            
+
             pdf.image(img_path, x=x_pos, y=pdf.get_y(), w=(img_width / 96) * scale)
             pdf.ln(((img_height / 96) * scale) + 0.3)  # Add space after image
         else:
             print(f"\033[93mWarning: {img_path} not found, skipping...\033[0m")
-    
+
     # Save the PDF
     pdf_path = os.path.join(save_path, "prs_report.pdf")
     pdf.output(pdf_path)
@@ -3011,7 +3019,9 @@ if __name__ == "__main__":
         # --------------------------------------------------------------
         # Create activity graph only if PERFORM_SCORE_ANALYSIS is true
         if os.getenv("PERFORM_QUANTITATIVE_ANALYSIS", "false").lower() == "true":
-            create_issues_activity_graph(data=table_data, headers=headers, end_date=args.end_date)
+            create_issues_activity_graph(
+                data=table_data, headers=headers, end_date=args.end_date
+            )
 
         # --------------------------------------------------------------
         # Create score graph only if PERFORM_SCORE_ANALYSIS is true
@@ -3418,7 +3428,14 @@ if __name__ == "__main__":
         )
 
         # create graph for rejection users
-        create_rejection_users_graph(rejection_users=rejection_users, end_date=args.end_date)
+        create_rejection_users_graph(
+            rejection_users=rejection_users, end_date=args.end_date
+        )
+        
+        # create graph for rejection by weeks
+        create_rejection_by_weeks_graph(
+            rejection_events=rejection_events, end_date=args.end_date
+        )
 
         # create pdf report of prs
         create_prs_report(
