@@ -15,6 +15,7 @@ from tqdm import tqdm
 from matplotlib import cm
 from datetime import datetime
 import glob
+from fpdf import FPDF
 
 
 # ----------------------------------------------------------------
@@ -2747,40 +2748,62 @@ def create_prs_report(
     start_date: str, end_date: str, save_path: str = "/workspace/tmp"
 ) -> None:
     """
-    Creates a PDF report for PRs by concatenating images.
-
+    Create a PDF report for PRs data between the specified dates.
+    
     Args:
-        start_date (str): Start date for the report in 'YYYY-MM-DD' format.
-        end_date (str): End date for the report in 'YYYY-MM-DD' format.
-        save_path (str): Directory to save the PDF report.
+        start_date: Start date in YYYY-MM-DD format
+        end_date: End date in YYYY-MM-DD format
+        save_path: Path to save the PDF report
     """
-    try:
-        # List of images to include in the report
-        images = ["rejection_users_graph.png"]
-
-        # Load images
-        pages = []
-        for image_name in images:
-            image_path = os.path.join(save_path, image_name)
-            img = Image.open(image_path)
-            if img.mode == "RGBA":
-                img = img.convert("RGB")
-            pages.append(img)
-
-        # Create output filename and save PDF
-        pdf_filename = f"tech_debt_prs_report_{start_date}_to_{end_date}.pdf"
-        pdf_path = os.path.join(save_path, pdf_filename)
-
-        # Save all pages to PDF
-        pages[0].save(
-            pdf_path, "PDF", resolution=300, save_all=True, append_images=pages[1:]
-        )
-        print(f"PRs PDF report saved at: {pdf_path}")
-
-    except FileNotFoundError as e:
-        print(f"Error: {str(e)} - Ensure the image file exists.")
-    except Exception as e:
-        print(f"Error creating PRs PDF: {str(e)}")
+    # Create a PDF document with letter size (8.5 x 11 inches)
+    pdf = FPDF(orientation="P", unit="in", format="Letter")
+    pdf.add_page()
+    pdf.set_auto_page_break(auto=True, margin=0.5)
+    
+    # Add title with timestamp
+    pdf.set_font("Arial", "B", 16)
+    pdf.cell(0, 0.5, "Pull Requests Report", 0, 1, "C")
+    
+    # Add generation timestamp with timezone
+    from datetime import datetime
+    import pytz
+    
+    # Get current time in UTC and convert to local timezone
+    local_tz = pytz.timezone('America/New_York')  # You can change this to your preferred timezone
+    current_time = datetime.now(pytz.utc).astimezone(local_tz)
+    timestamp = current_time.strftime("%Y-%m-%d %H:%M:%S %Z")
+    
+    pdf.set_font("Arial", "I", 10)
+    pdf.cell(0, 0.3, f"Report generated on: {timestamp}", 0, 1, "C")
+    
+    # List of images to include (these are created by other processes)
+    image_paths = [
+        f"{save_path}/rejection_users_graph.png",
+    ]
+    
+    # Add each image to the PDF, centered on the page
+    for img_path in image_paths:
+        if os.path.exists(img_path):
+            # Get image dimensions to calculate scaling
+            from PIL import Image
+            img_width, img_height = Image.open(img_path).size
+            
+            # Calculate scaling to fit on page with margins (8.5 inches width with 1 inch margins)
+            max_width = 6.5  # 8.5 - 1 - 1 (letter width minus margins)
+            scale = min(max_width / (img_width / 96), 4.0)  # Convert pixels to inches (96 dpi) and cap height
+            
+            # Center the image
+            x_pos = (8.5 - (img_width / 96) * scale) / 2
+            
+            pdf.image(img_path, x=x_pos, y=pdf.get_y(), w=(img_width / 96) * scale)
+            pdf.ln(((img_height / 96) * scale) + 0.3)  # Add space after image
+        else:
+            print(f"\033[93mWarning: {img_path} not found, skipping...\033[0m")
+    
+    # Save the PDF
+    pdf_path = os.path.join(save_path, "prs_report.pdf")
+    pdf.output(pdf_path)
+    print(f"PRs report saved to {pdf_path}")
 
 
 def filter_issues_by_user(issues_data: list, username: str) -> list:
