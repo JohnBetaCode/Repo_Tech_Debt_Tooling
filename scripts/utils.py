@@ -2796,6 +2796,7 @@ def create_prs_report(
 
     # List of images to include (these are created by other processes)
     image_paths = [
+        f"{save_path}/pr_rejections_by_week.png",
         f"{save_path}/rejection_users_graph.png",
     ]
 
@@ -2849,6 +2850,7 @@ def filter_issues_by_user(issues_data: list, username: str) -> list:
 
 def create_rejection_by_weeks_graph(
     rejection_events: list, 
+    start_date: str,
     end_date: str,
     save_path: str = "/workspace/tmp"
 ) -> None:
@@ -2857,6 +2859,7 @@ def create_rejection_by_weeks_graph(
     
     Args:
         rejection_events: List of PR rejection events with dates and categories
+        start_date: Start date for the report period
         end_date: End date for the report period
         save_path: Path to save the generated graph
     """
@@ -2864,7 +2867,8 @@ def create_rejection_by_weeks_graph(
         print("No rejection events data available for graph")
         return
 
-    # Convert end_date string to datetime
+    # Convert start_date and end_date strings to datetime
+    start_date_dt = datetime.strptime(start_date, "%Y-%m-%d")
     end_date_dt = datetime.strptime(end_date, "%Y-%m-%d")
     
     # Group rejection events by week and category
@@ -2881,7 +2885,16 @@ def create_rejection_by_weeks_graph(
             continue
             
         event_date = datetime.strptime(date_str, "%Y-%m-%d")
-        event_week = event_date.isocalendar()[:2]  # (year, week)
+        
+        # Skip events outside our date range
+        if event_date < start_date_dt or event_date > end_date_dt:
+            continue
+            
+        # Get the week ending on Sunday
+        # Find the next Sunday (or same day if it's a Sunday)
+        days_until_sunday = (6 - event_date.weekday()) % 7
+        week_end = event_date + timedelta(days=days_until_sunday)
+        week_key = (week_end.year, week_end.isocalendar()[1])
         
         # Extract category from the event
         if 'label' in event:
@@ -2892,23 +2905,36 @@ def create_rejection_by_weeks_graph(
         
         categories.add(category)
         
-        if event_week not in weeks_data:
-            weeks_data[event_week] = {}
+        if week_key not in weeks_data:
+            weeks_data[week_key] = {}
         
-        if category not in weeks_data[event_week]:
-            weeks_data[event_week][category] = 0
+        if category not in weeks_data[week_key]:
+            weeks_data[week_key][category] = 0
         
-        weeks_data[event_week][category] += 1
+        weeks_data[week_key][category] += 1
+    
+    # Generate all weeks between start_date and end_date
+    all_weeks = []
+    current = start_date_dt
+    
+    # Find the first Sunday from start date
+    days_until_sunday = (6 - current.weekday()) % 7
+    current_sunday = current + timedelta(days=days_until_sunday)
+    
+    # Generate all Sundays until end_date
+    while current_sunday <= end_date_dt:
+        week_key = (current_sunday.year, current_sunday.isocalendar()[1])
+        all_weeks.append(week_key)
+        current_sunday += timedelta(days=7)
     
     # Sort weeks chronologically
-    sorted_weeks = sorted(weeks_data.keys())
     categories = sorted(list(categories))
     
     # Prepare data for plotting
     week_labels = []
     data_by_category = {category: [] for category in categories}
     
-    for week in sorted_weeks:
+    for week in all_weeks:
         year, week_num = week
         week_label = f"{year}-W{week_num:02d}"
         week_labels.append(week_label)
@@ -2938,11 +2964,11 @@ def create_rejection_by_weeks_graph(
                 text_y = bottom[j] + height/2
                 plt.text(bar.get_x() + bar.get_width()/2, text_y, 
                          str(value), ha='center', va='center', 
-                         color='white', fontweight='bold')
+                         color='black', fontweight='bold')
         
         bottom += np.array(data_by_category[category])
     
-    plt.title(f"PR Rejections by Week and Category (as of {end_date})")
+    plt.title(f"PR Rejections by Week and Category ({start_date} to {end_date})")
     plt.xlabel("Week")
     plt.ylabel("Number of Rejections")
     plt.xticks(rotation=45)
@@ -2951,7 +2977,7 @@ def create_rejection_by_weeks_graph(
     plt.tight_layout()
     
     # Save the figure
-    filename = f"pr_rejections_by_week_{end_date.replace('-', '')}.png"
+    filename = f"pr_rejections_by_week.png"
     filepath = os.path.join(save_path, filename)
     plt.savefig(filepath)
     plt.close()
@@ -3546,16 +3572,12 @@ if __name__ == "__main__":
         create_rejection_users_graph(
             rejection_users=rejection_users, end_date=args.end_date
         )
-        
-        print(rejection_events)
-        
+
         # create graph for rejection by weeks
         create_rejection_by_weeks_graph(
+            start_date=args.start_date,
             rejection_events=rejection_events, end_date=args.end_date
         )
-
-        # REMOVE REMOVE REMOVE
-        exit(0)
 
         # create pdf report of prs
         create_prs_report(
