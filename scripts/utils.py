@@ -20,7 +20,7 @@ from fpdf import FPDF
 
 # ----------------------------------------------------------------
 def get_github_issues_and_prs_history(
-    url: str, accept: str, token: str, save: bool = True
+    url: str, accept: str, token: str, save: bool = True, start_date: str = "", end_date: str = ""
 ):
     """
     Retrieves issues and pull requests from GitHub API with pagination support.
@@ -2669,7 +2669,7 @@ def get_open_prs_until_end_date(prs_data: list, end_date: str) -> dict:
 
 
 def create_rejection_users_graph(
-    rejection_users: dict, save_path: str = "/workspace/tmp"
+    rejection_users: dict, save_path: str = "/workspace/tmp", end_date: str = ""
 ) -> None:
     """
     Creates and saves a stacked bar chart showing the number of rejections per user, categorized by rejection labels.
@@ -2730,7 +2730,7 @@ def create_rejection_users_graph(
     # Add labels and title
     ax.set_xlabel("Users")
     ax.set_ylabel("Number of Rejections")
-    ax.set_title("Rejections per User by Category")
+    ax.set_title(f"Rejections per User by Category until {end_date}")
     ax.set_xticks(range(len(users)))
     ax.set_xticklabels(users, rotation=45, ha="right")
     ax.legend(title="Rejection Categories")
@@ -2764,6 +2764,14 @@ def create_prs_report(
     # Add title with timestamp
     pdf.set_font("Arial", "B", 16)
     pdf.cell(0, 0.5, "Pull Requests Report", 0, 1, "C")
+    
+    # Add a warning regarding datasets
+    pdf.set_font("Arial", "B", 10)
+    pdf.set_text_color(255, 0, 0)  # Set text color to red
+    pdf.cell(0, 0.3, "WARNING:", 0, 1, "C")
+    pdf.set_font("Arial", "", 10)
+    pdf.multi_cell(0, 0.2, "Data outside the specified date range is not included in this report. PRs created before the start date are not considered, even if they were merged within the date range.", 0, "C")
+    pdf.set_text_color(0, 0, 0)  # Reset text color to black
     
     # Add generation timestamp with timezone
     from datetime import datetime
@@ -2877,6 +2885,8 @@ if __name__ == "__main__":
             accept=GITHUB_ACCEPT,
             token=GITHUB_TOKEN,
             save=True,
+            start_date=args.start_date,
+            end_date=args.end_date,
         )
     if not len(data):
         print(
@@ -3408,7 +3418,7 @@ if __name__ == "__main__":
         )
 
         # create graph for rejection users
-        create_rejection_users_graph(rejection_users=rejection_users)
+        create_rejection_users_graph(rejection_users=rejection_users, end_date=args.end_date)
 
         # create pdf report of prs
         create_prs_report(
