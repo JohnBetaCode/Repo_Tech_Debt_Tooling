@@ -2918,7 +2918,19 @@ def create_rejection_by_weeks_graph(
     
     bottom = np.zeros(len(week_labels))
     for category in categories:
-        plt.bar(week_labels, data_by_category[category], bottom=bottom, label=category)
+        bars = plt.bar(week_labels, data_by_category[category], bottom=bottom, label=category)
+        
+        # Add data values inside the bars
+        for i, bar in enumerate(bars):
+            value = data_by_category[category][i]
+            if value > 0:  # Only show non-zero values
+                height = bar.get_height()
+                # Position the text in the middle of each bar segment
+                text_y = bottom[i] + height/2
+                plt.text(bar.get_x() + bar.get_width()/2, text_y, 
+                         str(value), ha='center', va='center', 
+                         color='white', fontweight='bold')
+        
         bottom += np.array(data_by_category[category])
     
     plt.title(f"PR Rejections by Week and Category (as of {end_date})")
@@ -2926,6 +2938,7 @@ def create_rejection_by_weeks_graph(
     plt.ylabel("Number of Rejections")
     plt.xticks(rotation=45)
     plt.legend(title="Rejection Categories")
+    plt.grid(True, linestyle='--', alpha=0.7)  # Add grid with dashed lines
     plt.tight_layout()
     
     # Save the figure
