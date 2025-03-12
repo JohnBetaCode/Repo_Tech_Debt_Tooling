@@ -2776,8 +2776,8 @@ def create_prs_report(
         end_date: End date in YYYY-MM-DD format
         save_path: Path to save the PDF report
     """
-    # Calculate total height needed for the page
-    total_height = 2.0  # Initial space for title and timestamp
+    # Initial space needed for title and timestamp
+    total_height = 1.0  
     
     # List of images to include
     image_paths = [
@@ -2787,20 +2787,29 @@ def create_prs_report(
     ]
     
     # Calculate height needed for all images
+    image_heights = []
     for img_path in image_paths:
         if os.path.exists(img_path):
             img_width, img_height = Image.open(img_path).size
             # Convert from pixels to inches (assuming 96 DPI)
+            img_width_in = img_width / 96
             img_height_in = img_height / 96
-            total_height += img_height_in + 0.5  # Image height plus spacing
+            
+            # If image is wider than page width, scale it to fit the width
+            page_width = 7.5  # Letter width minus margins
+            if img_width_in > page_width:
+                scale_factor = page_width / img_width_in
+                img_height_in = img_height_in * scale_factor
+                
+            image_heights.append(img_height_in)
+            total_height += img_height_in + 0.3  # Image height plus spacing
     
-    # Add space for warning
-    total_height += 1.0
+    # Add space for warning (approximately 0.7 inches)
+    total_height += 0.7
     
     # Create a custom-sized PDF with letter width but custom height
     pdf = FPDF(orientation="P", unit="in", format=(8.5, total_height))
     pdf.add_page()
-    # Disable auto page break
     pdf.set_auto_page_break(auto=False)
 
     # Add title with timestamp
@@ -2818,7 +2827,7 @@ def create_prs_report(
     current_y = pdf.get_y() + 0.2  # Start position for images
 
     # Add each image to the PDF at its original size
-    for img_path in image_paths:
+    for i, img_path in enumerate(image_paths):
         if os.path.exists(img_path):
             # Get image dimensions
             img_width, img_height = Image.open(img_path).size
@@ -2841,7 +2850,7 @@ def create_prs_report(
             pdf.image(img_path, x=x_pos, y=current_y, w=img_width_in)
             
             # Update Y position for next image
-            current_y += img_height_in + 0.5  # Add 0.5 inch space after each image
+            current_y += image_heights[i] + 0.3  # Add spacing after each image
         else:
             print(f"\033[93mWarning: {img_path} not found, skipping...\033[0m")
 
