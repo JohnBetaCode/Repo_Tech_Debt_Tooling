@@ -1555,7 +1555,7 @@ def create_user_priority_levels_graph(
     x_positions = range(len(weeks_data))
 
     for priority, counts in priority_data.items():
-        ax1.bar(
+        bars = ax1.bar(
             x_positions,
             counts,
             bottom=bottom,
@@ -1569,7 +1569,7 @@ def create_user_priority_levels_graph(
             if count > 0:
                 # Position the text in the middle of its segment
                 height = bottom[i] + (count / 2)
-                ax1.text(i, height, str(count), ha="center", va="center")
+                ax1.text(i, height, str(int(count)), ha="center", va="center", color='white', fontweight='bold')
 
         bottom += np.array(counts)
 
@@ -1601,6 +1601,9 @@ def create_user_priority_levels_graph(
     ax1.set_ylabel("Number of Issues")
     ax1.grid(True, linestyle="--", alpha=0.7)
     ax1.legend(loc="upper left")
+
+    # Set y-axis to use integer values only
+    ax1.yaxis.set_major_locator(plt.MaxNLocator(integer=True))
 
     # Save the plot
     plt.savefig(
@@ -2156,9 +2159,11 @@ def create_label_analysis_category_graphs(
                     ax.text(
                         bar.get_x() + bar.get_width() / 2,
                         bar.get_y() + bar.get_height() / 2,
-                        str(value),
+                        str(int(value)),
                         ha="center",
                         va="center",
+                        color='white',
+                        fontweight='bold'
                     )
             bottom += data[i]
 
@@ -2733,7 +2738,7 @@ def create_prs_rejection_users_graph(
                 ax.text(
                     bar.get_x() + bar.get_width() / 2,
                     bar.get_y() + bar.get_height() / 2,
-                    str(count),
+                    str(int(count)),
                     ha="center",
                     va="center",
                     color="black",  # Changed from white to black for better visibility
@@ -3003,7 +3008,7 @@ def create_prs_rejection_by_weeks_graph(
                 plt.text(
                     bar.get_x() + bar.get_width() / 2,
                     text_y,
-                    str(value),
+                    str(int(value)),
                     ha="center",
                     va="center",
                     color="black",
@@ -3088,7 +3093,15 @@ def create_prs_by_labels_by_weeks_graph(
     
     # Plot each label's data as a stacked bar
     for label, counts in data_by_label.items():
-        plt.bar(week_labels, counts, width, label=label, bottom=bottom)
+        bars = plt.bar(week_labels, counts, width, label=label, bottom=bottom)
+        
+        # Add values inside each bar segment
+        for i, bar in enumerate(bars):
+            height = counts[i]
+            if height > 0:  # Only add text if the bar segment has height
+                plt.text(bar.get_x() + bar.get_width()/2., bottom[i] + height/2,
+                        str(int(height)), ha='center', va='center', color='white', fontweight='bold')
+        
         bottom += np.array(counts)
     
     plt.title(f"PRs by Label and Week ({start_date} to {end_date})")
@@ -3098,6 +3111,9 @@ def create_prs_by_labels_by_weeks_graph(
     plt.legend(title="PR Labels")
     plt.grid(True, linestyle="--", alpha=0.7)
     plt.tight_layout()
+    
+    # Set y-axis to use integer values only
+    plt.gca().yaxis.set_major_locator(plt.MaxNLocator(integer=True))
     
     # Save the figure
     filename = f"prs_by_labels_by_weeks.png"
