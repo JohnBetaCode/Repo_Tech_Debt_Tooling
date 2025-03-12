@@ -3075,7 +3075,13 @@ def create_prs_by_labels_by_weeks_graph(
     
     # Create a list of week start dates
     week_dates = [start_date_dt + timedelta(days=i*7) for i in range(num_weeks)]
-    week_labels = [date.strftime("%Y-%m-%d") for date in week_dates]
+    
+    # Format week labels as "YY-W##" (last two digits of year and week number)
+    week_labels = []
+    for date in week_dates:
+        year_short = str(date.year)[-2:]  # Get last two digits of year
+        week_num = date.isocalendar()[1]  # Get ISO week number
+        week_labels.append(f"{year_short}-W{week_num:02d}")  # Format as YY-W## with leading zero
     
     # Initialize data structure to store PR counts by label and week
     data_by_label = {label: [0] * num_weeks for label in labels}
