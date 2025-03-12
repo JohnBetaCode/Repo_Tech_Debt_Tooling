@@ -2764,12 +2764,13 @@ def create_prs_report(
     # Create a PDF document with letter size (8.5 x 11 inches)
     pdf = FPDF(orientation="P", unit="in", format="Letter")
     pdf.add_page()
-    pdf.set_auto_page_break(auto=True, margin=0.5)
+    # Disable auto page break to keep everything on one page
+    pdf.set_auto_page_break(auto=False, margin=0.5)
 
     # Add title with timestamp
     pdf.set_font("Arial", "B", 16)
     pdf.cell(0, 0.5, "Pull Requests Report", 0, 1, "C")
-
+    
     # Add a warning regarding datasets
     pdf.set_font("Arial", "B", 10)
     pdf.set_text_color(255, 0, 0)  # Set text color to red
@@ -2800,26 +2801,37 @@ def create_prs_report(
         f"{save_path}/rejection_users_graph.png",
     ]
 
-    # Add each image to the PDF, centered on the page
-    for img_path in image_paths:
-        if os.path.exists(img_path):
-            # Get image dimensions to calculate scaling
+    # Calculate available space for images
+    available_height = 11 - pdf.get_y() - 0.5  # Letter height minus current Y position minus bottom margin
+    num_images = sum(1 for img_path in image_paths if os.path.exists(img_path))
+    
+    if num_images > 0:
+        # Space per image including gap
+        space_per_image = available_height / num_images
+        
+        # Add each image to the PDF, centered on the page
+        for img_path in image_paths:
+            if os.path.exists(img_path):
+                # Get image dimensions
+                img_width, img_height = Image.open(img_path).size
+                aspect_ratio = img_width / img_height
 
-            img_width, img_height = Image.open(img_path).size
-
-            # Calculate scaling to fit on page with margins (8.5 inches width with 1 inch margins)
-            max_width = 6.5  # 8.5 - 1 - 1 (letter width minus margins)
-            scale = min(
-                max_width / (img_width / 96), 4.0
-            )  # Convert pixels to inches (96 dpi) and cap height
-
-            # Center the image
-            x_pos = (8.5 - (img_width / 96) * scale) / 2
-
-            pdf.image(img_path, x=x_pos, y=pdf.get_y(), w=(img_width / 96) * scale)
-            pdf.ln(((img_height / 96) * scale) + 0.3)  # Add space after image
-        else:
-            print(f"\033[93mWarning: {img_path} not found, skipping...\033[0m")
+                # Calculate scaling to fit on page with margins
+                max_width = 6.5  # 8.5 - 1 - 1 (letter width minus margins)
+                max_height = space_per_image - 0.2  # Allow for some gap between images
+                
+                # Scale based on both width and height constraints
+                width_scale = max_width / (img_width / 96)
+                height_scale = max_height / (img_height / 96)
+                scale = min(width_scale, height_scale)
+                
+                # Center the image
+                x_pos = (8.5 - (img_width / 96) * scale) / 2
+                
+                pdf.image(img_path, x=x_pos, y=pdf.get_y(), w=(img_width / 96) * scale)
+                pdf.ln(((img_height / 96) * scale) + 0.2)  # Add small space after image
+            else:
+                print(f"\033[93mWarning: {img_path} not found, skipping...\033[0m")
 
     # Save the PDF
     pdf_path = os.path.join(save_path, "prs_report.pdf")
