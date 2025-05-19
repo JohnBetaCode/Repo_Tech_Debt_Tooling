@@ -10,6 +10,7 @@ issues:
     - type_bug
     - type_enhancement
     - type_hotfix
+    - type_enhancement_tracebacks
   priority:
     - PRIORITY_LOW
     - PRIORITY_MEDIUM
